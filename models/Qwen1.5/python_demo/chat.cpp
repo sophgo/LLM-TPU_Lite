@@ -23,7 +23,7 @@
 #include <random>
 #include <numeric>
 
-static const uint16_t ATTENTION_MASK = 0xF0E2; // -9984 by bfloat16
+static const uint16_t ATTENTION_MASK = 0xF0E2; // -9984 by float16
 
 class Qwen {
 public:
@@ -93,7 +93,7 @@ void Qwen::init(const std::vector<int> &devices, int eos_token_id, std::string m
   p_bmrt = bmrt_create_ex(handles.data(), handles.size());
 #endif
   assert(NULL != p_bmrt);
-
+  bmrt_set_flags(p_bmrt, BM_RUNTIME_SHARE_MEM);
   // load bmodel by file
   printf("Model[%s] loading ....\n", model_path.c_str());
   bool ret = bmrt_load_bmodel(p_bmrt, model_path.c_str());
@@ -152,7 +152,7 @@ void Qwen::init(const std::vector<int> &devices, int eos_token_id, std::string m
     assert(true == ret);
   }
 
-  next_inputid.resize(device_num);  
+  next_inputid.resize(device_num);
   for (int i = 0; i < device_num; ++i) {
     ret = bmrt_tensor_ex(&next_inputid[i], p_bmrt,
                         net_embed_cache->input_loc_devices[i],
@@ -234,7 +234,7 @@ void Qwen::init(const std::vector<int> &devices, int eos_token_id, std::string m
       assert(true == ret);
       ret = bmrt_tensor_ex(&outputs_logit_lm[i], p_bmrt, i, net_lm->output_dtypes[0],
                           net_lm->stages[0].output_shapes[0]);
-      assert(true == ret);    
+      assert(true == ret);
       ret = bmrt_tensor_ex(&outputs_token_lm[i], p_bmrt, i, net_lm->output_dtypes[1],
                           net_lm->stages[0].output_shapes[1]);
       assert(true == ret);
@@ -277,7 +277,7 @@ int Qwen::forward_first(std::vector<int> &tokens) {
   std::vector<int> position_id(SEQLEN, 0);
   std::vector<uint16_t> attention_mask(SEQLEN * SEQLEN, ATTENTION_MASK);
   std::copy(tokens.begin(), tokens.end(), input_ids.data());
-  
+
   token_length = tokens.size();
 
   for (int i = 0; i < token_length; i++) {
@@ -384,8 +384,8 @@ int Qwen::forward_next(int cur_token) {
                           input_nums.data(), device_num);
   bmrt_memcpy_s2d_parallel(p_bmrt, next_pid.data(), pid_datas.data(),
                           input_nums.data(), device_num);
-                          
-  // WARNING: make inputs_lm device_num                   
+
+  // WARNING: make inputs_lm device_num
   std::vector<bm_tensor_t> embed_1 = inputs_lm;
   for (int i = 0; i < device_num; ++i) {
     embed_1[i].shape = net_blocks_cache[0]->stages[0].input_shapes[0];
@@ -438,7 +438,7 @@ int Qwen::forward_first_with_topk(std::vector<int> &tokens, std::string mode) {
   std::vector<int> position_id(SEQLEN, 0);
   std::vector<uint16_t> attention_mask(SEQLEN * SEQLEN, ATTENTION_MASK);
   std::copy(tokens.begin(), tokens.end(), input_ids.data());
-  
+
   token_length = tokens.size();
 
   for (int i = 0; i < token_length; i++) {
@@ -523,7 +523,7 @@ int Qwen::forward_first_with_topk(std::vector<int> &tokens, std::string mode) {
   } else if (mode == "sample") {
     token = sample(logits, candidate_tokens);
   }
-  
+
   return token;
 }
 
@@ -564,8 +564,8 @@ int Qwen::forward_next_with_topk(int cur_token, std::string mode) {
                           input_nums.data(), device_num);
   bmrt_memcpy_s2d_parallel(p_bmrt, next_pid.data(), pid_datas.data(),
                           input_nums.data(), device_num);
-                          
-  // WARNING: make inputs_lm device_num                   
+
+  // WARNING: make inputs_lm device_num
   std::vector<bm_tensor_t> embed_1 = inputs_lm;
   for (int i = 0; i < device_num; ++i) {
     embed_1[i].shape = net_blocks_cache[0]->stages[0].input_shapes[0];

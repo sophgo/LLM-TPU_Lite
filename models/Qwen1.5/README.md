@@ -41,8 +41,8 @@ sudo reboot
   从sftp上获取TPU-MLIR压缩包
   ```bash
   pip3 install dfss --upgrade
-  python3 -m dfss --url=open@sophgo.com:sophon-demo/Qwen/tpu-mlir_v1.6.113-g7dc59c81-20240105.tar.gz 
-  tar -xf tpu-mlir_v1.6.113-g7dc59c81-20240105.tar.gz 
+  python3 -m dfss --url=open@sophgo.com:sophon-demo/Qwen/tpu-mlir_v1.6.113-g7dc59c81-20240105.tar.gz
+  tar -xf tpu-mlir_v1.6.113-g7dc59c81-20240105.tar.gz
   ```
 
 ### 3.2 docker 版本
@@ -109,4 +109,18 @@ tokenizer已经放在了`support`文件夹下
 ```bash
 cd python_demo
 python chat.py --devid 0 --model_path your_bmodel_path --tokenizer_path ../support/token_config/
+```
+
+## 常见问题
+
+1. 在soc中怎么编译demo?
+
+``` shell
+pip3 install pybind11 transformers
+# 进入python_demo目录
+mkdir build
+cd build
+cmake .. -DCMAKE_PREFIX_PATH=~/.local/lib/python3.8/site-packages/pybind11
+cd ..
+python3 chat.py --model_path /data/llm/qwen1.5-1.8b_bm1688_int4_2core.bmodel --tokenizer_path ../support/token_config/
 ```

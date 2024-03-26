@@ -30,14 +30,14 @@ class Engine:
         self.model.init(devices, self.sp.eos_token_id, args.model_path)
 
         # warm up
-        self.sp.decode([0]) 
+        self.sp.decode([0])
         print("Done!")
 
     def chat(self):
         # Stop Chatting with "exit" input
         while True:
             self.input_str = input("\nQuestion: ")
-            if self.input_str == "exit":
+            if self.input_str in ["exit","quit"]:
                 break
 
             # tokens_with_template = self.generate_tokens(self.input_str)
@@ -66,7 +66,7 @@ class Engine:
         if self.token_length > self.SEQLEN:
             print("The maximum question length should be shorter than {} but we get {} instead.".format(self.SEQLEN, self.token_length))
             return
-        
+
         # First token
         first_start = time.time()
         token = self.forward_first(tokens)
@@ -81,7 +81,7 @@ class Engine:
                 self.token_length += 1
             tok_num += 1
             token = self.forward_next(token)
-        
+
         # counting time
         next_end = time.time()
         first_duration = first_end - first_start
@@ -107,7 +107,7 @@ class Engine:
         elif self.mode == "sample":
             token = self.model.forward_first_with_topk(tokens, self.mode)
         return token
-    
+
     def forward_next(self, token):
         if self.mode == "greedy":
             token = self.model.forward_next(token)
@@ -121,7 +121,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--devid', type=str, help='Device ID to use.')
+    parser.add_argument('--devid', type=str, default='0', help='Device ID to use.')
     parser.add_argument('--model_path', type=str, help='Path to the bmodel file.')
     parser.add_argument('--tokenizer_path', type=str, help='Path to the tokenizer file.')
     args = parser.parse_args()
