@@ -52,9 +52,6 @@ private:
   size_t clear_idx = 0; // if history is full, remove half history
   int BOS;
   int EOS;
-  std::vector<int> user_turn;
-  std::vector<int> gemma_turn;
-  std::vector<int> end_turn;
   size_t SEQLEN;
   int NUM_LAYERS;
   bool io_alone;
@@ -103,9 +100,6 @@ void Gemma::load_sentencepiece(std::string tokenizer_path) {
   BOS = sentencepiece.bos_id();
   EOS = sentencepiece.eos_id();
   printf("Done!\n");
-  sentencepiece.Encode("<start_of_turn>user\n", &user_turn);
-  sentencepiece.Encode("<start_of_turn>model\n", &gemma_turn);
-  sentencepiece.Encode("<end_of_turn>\n", &end_turn);
 }
 
 void Gemma::init(int device, std::string model_path,

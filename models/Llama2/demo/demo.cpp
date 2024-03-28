@@ -22,22 +22,23 @@ static const uint16_t ATTENTION_MASK = 0xF0E2;
 
 class LLama2 {
 public:
-  void init(const std::vector<int> &devid, std::string model_path, std::string tokenizer_path);
+  void init(std::string model_path, std::string tokenizer_path);
   void chat();
   void deinit();
 
 private:
   void answer(const std::string &input_str);
-  void tokenizer_encode(const std::string &input_str, std::vector<int> &tokens);
   int forward_first(std::vector<int> &tokens);
   int forward_next(int cur_token);
   void load_sentencepiece(std::string tokenizer_path);
-  std::string build_prompt(std::string query, std::vector<std::pair<std::string, std::string>> history);
+  void net_launch(const bm_net_info_t *net, int stage_idx = 0);
+  inline void d2d(bm_device_mem_t &dst, bm_device_mem_t &src);
+  std::string
+  build_prompt(std::string query,
+               std::vector<std::pair<std::string, std::string>> history);
 
 private:
-  int device_num;
-  bm_handle_t bm_handle;
-  std::vector<bm_handle_t> handles;
+  bm_handle_t bm_handle = 0;
   void *p_bmrt;
   sentencepiece::SentencePieceProcessor sentencepiece;
   const bm_net_info_t *net_embed;
@@ -45,25 +46,40 @@ private:
   const bm_net_info_t *net_lm;
   std::vector<const bm_net_info_t *> net_blocks;
   std::vector<const bm_net_info_t *> net_blocks_cache;
-  std::vector<bm_tensor_t> inputs_embed_512, outputs_embed_512;
-  std::vector<bm_tensor_t> inputs_pid, next_pid, inputs_attention, next_attention;
-  std::vector<std::vector<bm_tensor_t>> past_key, past_value;
-  std::vector<bm_tensor_t> present_key_cache, present_value_cache;
-  std::vector<bm_tensor_t> inputs_lm, outputs_lm;
-  std::string history = "";
-  std::string name_embed;
-  std::string name_embed_cache;
-  std::string name_lm;
-  std::vector<std::string> name_blocks;
-  std::vector<std::string> name_blocks_cache;
+  std::vector<bm_device_mem_t> past_key;
+  std::vector<bm_device_mem_t> past_value;
   std::vector<std::pair<std::string, std::string>> history_vector;
-  std::string sys_config = R"(<s>[INST] <<SYS>>\nYou are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.\n
+  std::string sys_config =
+      R"(<s>[INST] <<SYS>>\nYou are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.\n
 If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.\n<</SYS>>\n\n)";
-  int SEQLEN;     // read from bmodel
-  int NUM_LAYERS; // read from bmodel
-  int token_length;
+  int BOS;
   int EOS;
+  int SEQLEN;
+  int NUM_LAYERS;
+  bool io_alone;
+  int token_length;
 };
+
+void LLama2::net_launch(const bm_net_info_t *net, int stage_idx) {
+  std::vector<bm_tensor_t> in_tensors(net->input_num);
+  std::vector<bm_tensor_t> out_tensors(net->output_num);
+
+  for (int i = 0; i < net->input_num; i++) {
+    bmrt_tensor_with_device(
+        &in_tensors[i], net->stages[stage_idx].input_mems[i],
+        net->input_dtypes[i], net->stages[stage_idx].input_shapes[i]);
+  }
+  for (int i = 0; i < net->output_num; i++) {
+    bmrt_tensor_with_device(
+        &out_tensors[i], net->stages[stage_idx].output_mems[i],
+        net->output_dtypes[i], net->stages[stage_idx].output_shapes[i]);
+  }
+  auto ret = bmrt_launch_tensor_ex(p_bmrt, net->name, in_tensors.data(),
+                                   net->input_num, out_tensors.data(),
+                                   net->output_num, true, false);
+  assert(ret);
+  bm_thread_sync(bm_handle);
+}
 
 void LLama2::load_sentencepiece(std::string tokenizer_path) {
   printf("Load %s ... ", tokenizer_path.c_str());
@@ -72,195 +88,86 @@ void LLama2::load_sentencepiece(std::string tokenizer_path) {
     std::cout << status.ToString() << std::endl;
     exit(-1);
   }
+  BOS = sentencepiece.bos_id();
   EOS = sentencepiece.eos_id();
   printf("Done!\n");
 }
 
-void LLama2::init(const std::vector<int> &devices, std::string model_path, std::string tokenizer_path) {
-  // load tokenizer
+void LLama2::init(std::string model_path, std::string tokenizer_path) {
   load_sentencepiece(tokenizer_path);
 
   // request bm_handle
-  std::cout << "Device [ ";
-  for (auto d : devices) {
-    std::cout << d << " ";
-  }
-  std::cout << "] loading ....\n";
-  device_num = devices.size();
-  for (auto d : devices) {
-    bm_handle_t h;
-    bm_status_t status = bm_dev_request(&h, d);
-    assert(BM_SUCCESS == status);
-    handles.push_back(h);
-  }
-  bm_handle = handles[0];
+  bm_status_t status = bm_dev_request(&bm_handle, 0);
+  assert(BM_SUCCESS == status);
 
   // create bmruntime
-  p_bmrt = bmrt_create_ex(handles.data(), device_num);
+  p_bmrt = bmrt_create(bm_handle);
   assert(NULL != p_bmrt);
 
+  bmrt_set_flags(p_bmrt, BM_RUNTIME_SHARE_MEM);
   // load bmodel by file
   printf("Model[%s] loading ....\n", model_path.c_str());
   bool ret = bmrt_load_bmodel(p_bmrt, model_path.c_str());
   assert(true == ret);
-  printf("Done!\n");
+  printf("\nDone!\n");
 
   // set NUM_LAYERS
   auto num_nets = bmrt_get_network_number(p_bmrt);
-  NUM_LAYERS = (num_nets - 2) / 2;
-
-  // net names
-  name_embed = "embedding";
-  name_embed_cache = "embedding_cache";
-  name_lm = "lm_head";
-  for (int i = 0; i < NUM_LAYERS; i++) {
-    name_blocks.emplace_back("block_" + std::to_string(i));
-    name_blocks_cache.emplace_back("block_cache_" + std::to_string(i));
-  }
+  NUM_LAYERS = (num_nets - 3) / 2;
 
   // net infos
-  net_embed = bmrt_get_network_info(p_bmrt, name_embed.c_str());
-  net_embed_cache = bmrt_get_network_info(p_bmrt, name_embed_cache.c_str());
-  net_lm = bmrt_get_network_info(p_bmrt, name_lm.c_str());
+  net_embed = bmrt_get_network_info(p_bmrt, "embedding");
+  net_embed_cache = bmrt_get_network_info(p_bmrt, "embedding_cache");
+  net_lm = bmrt_get_network_info(p_bmrt, "lm_head");
   for (int i = 0; i < NUM_LAYERS; i++) {
-    net_blocks.emplace_back(
-        bmrt_get_network_info(p_bmrt, name_blocks[i].c_str()));
+    auto block_name = "block_" + std::to_string(i);
+    auto cache_name = "block_cache_" + std::to_string(i);
+    net_blocks.emplace_back(bmrt_get_network_info(p_bmrt, block_name.c_str()));
     net_blocks_cache.emplace_back(
-        bmrt_get_network_info(p_bmrt, name_blocks_cache[i].c_str()));
+        bmrt_get_network_info(p_bmrt, cache_name.c_str()));
   }
 
   // set SEQLEN
-  SEQLEN = net_embed->stages[0].input_shapes[0].dims[0];
+  SEQLEN = net_embed->stages[0].input_shapes[0].dims[1];
 
-  // net device mem
-  inputs_embed_512.resize(net_embed->input_num);
-  for (int i = 0; i < device_num; ++i) {
-    ret = bmrt_tensor_ex(&inputs_embed_512[i], p_bmrt,
-                        net_embed->input_loc_devices[i],
-                        net_embed->input_dtypes[i],
-                        net_embed->stages[0].input_shapes[i]);
-    assert(true == ret);
-  }
-
-  outputs_embed_512.resize(net_embed->output_num);
-  for (int i = 0; i < device_num; ++i) {
-    ret = bmrt_tensor_ex(&outputs_embed_512[i], p_bmrt,
-                        net_embed->output_loc_devices[i],
-                        net_embed->output_dtypes[i],
-                        net_embed->stages[0].output_shapes[i]);
-    assert(true == ret);
-  }
-
-  inputs_pid.resize(device_num);
-  inputs_attention.resize(device_num);
-  int in_num = net_blocks[0]->input_num / device_num;
-  for (int i = 0; i < device_num; ++i) {
-    ret = bmrt_tensor_ex(&inputs_pid[i], p_bmrt,
-                        net_blocks[0]->input_loc_devices[1 + i * in_num],
-                        net_blocks[0]->input_dtypes[1 + i * in_num],
-                        net_blocks[0]->stages[0].input_shapes[1 + i * in_num]);
-    assert(true == ret);
-
-    ret = bmrt_tensor_ex(&inputs_attention[i], p_bmrt,
-                        net_blocks[0]->input_loc_devices[2 + i * in_num],
-                        net_blocks[0]->input_dtypes[2 + i * in_num],
-                        net_blocks[0]->stages[0].input_shapes[2 + i * in_num]);
-    assert(true == ret);
-  }
-
-
-  next_pid.resize(device_num);
-  next_attention.resize(device_num);
-  int in_num_cache = net_blocks_cache[0]->input_num / device_num;
-  for (int i = 0; i < device_num; ++i) {
-    ret = bmrt_tensor_ex(&next_pid[i], p_bmrt,
-                        net_blocks_cache[0]->input_loc_devices[1 + i * in_num_cache],
-                        net_blocks_cache[0]->input_dtypes[1 + i * in_num_cache],
-                        net_blocks_cache[0]->stages[0].input_shapes[1 + i * in_num_cache]);
-    assert(true == ret);
-
-    ret = bmrt_tensor_ex(&next_attention[i], p_bmrt,
-                        net_blocks_cache[0]->input_loc_devices[2 + i * in_num_cache],
-                        net_blocks_cache[0]->input_dtypes[2 + i * in_num_cache],
-                        net_blocks_cache[0]->stages[0].input_shapes[2 + i * in_num_cache]);
-    assert(true == ret);
-  }
-
+  // resize
   past_key.resize(NUM_LAYERS);
   past_value.resize(NUM_LAYERS);
-  int out_num = net_blocks[0]->output_num / device_num;
+
+  // net device mem
+  auto addr_mode = net_blocks_cache[0]->addr_mode;
+  io_alone = addr_mode == 1;
   for (int i = 0; i < NUM_LAYERS; i++) {
-    past_key[i].resize(device_num);
-    past_value[i].resize(device_num);
-    for (int j = 0; j < device_num; j++) {
-      ret = bmrt_tensor_ex(&past_key[i][j], p_bmrt,
-                          net_blocks[0]->output_loc_devices[1 + j * out_num],
-                          net_blocks[0]->output_dtypes[1 + j * out_num],
-                          net_blocks[0]->stages[0].output_shapes[1 + j * out_num]);
-      assert(true == ret);
-      ret = bmrt_tensor_ex(&past_value[i][j], p_bmrt,
-                          net_blocks[0]->output_loc_devices[2 + j * out_num],
-                          net_blocks[0]->output_dtypes[2 + j * out_num],
-                          net_blocks[0]->stages[0].output_shapes[2 + j * out_num]);
-      assert(true == ret);
-    }
-  }
-
-  present_key_cache.resize(device_num);
-  present_value_cache.resize(device_num);
-  inputs_lm.resize(device_num);
-  outputs_lm.resize(device_num);
-  for (int i = 0; i < device_num; ++i) {
-    present_key_cache[i] = past_key[0][i];
-    present_value_cache[i] = past_value[0][i];
-    present_key_cache[i].shape.dims[1] = 1;
-    present_value_cache[i].shape.dims[1] = 1;
-
-    ret = bmrt_tensor_ex(&inputs_lm[i], p_bmrt, i, net_lm->input_dtypes[0],
-                        net_lm->stages[0].input_shapes[0]);
-    assert(true == ret);
-    ret = bmrt_tensor_ex(&outputs_lm[i], p_bmrt, i, net_lm->output_dtypes[0],
-                        net_lm->stages[0].output_shapes[0]);
-    assert(true == ret);
+    assert(addr_mode == net_blocks_cache[i]->addr_mode);
+    past_key[i] = net_blocks_cache[i]->stages[0].input_mems[3];
+    past_value[i] = net_blocks_cache[i]->stages[0].input_mems[4];
   }
 }
 
 void LLama2::deinit() {
-  for (int i = 0; i < device_num; ++i) {
-    bm_free_device(handles[i], inputs_embed_512[i].device_mem);
-    bm_free_device(handles[i], outputs_embed_512[i].device_mem);
-    bm_free_device(handles[i], inputs_pid[i].device_mem);
-    bm_free_device(handles[i], next_pid[i].device_mem);
-    bm_free_device(handles[i], inputs_attention[i].device_mem);
-    bm_free_device(handles[i], next_attention[i].device_mem);
-    bm_free_device(handles[i], inputs_lm[i].device_mem);
-    bm_free_device(handles[i], outputs_lm[i].device_mem);
-  }
-  for (int i = 0; i < NUM_LAYERS; i++) {
-    for (int j = 0; j < device_num; j++) {
-      bm_free_device(handles[j], past_key[i][j].device_mem);
-      bm_free_device(handles[j], past_value[i][j].device_mem);
+  if (false == io_alone) {
+    for (int i = 0; i < NUM_LAYERS; i++) {
+      bm_free_device(bm_handle, past_key[i]);
+      bm_free_device(bm_handle, past_value[i]);
     }
   }
   bmrt_destroy(p_bmrt);
-  for (auto h : handles) {
-    bm_dev_free(h);
-  }
+  bm_dev_free(bm_handle);
+}
+
+void LLama2::d2d(bm_device_mem_t &dst, bm_device_mem_t &src) {
+  bm_memcpy_d2d_byte(bm_handle, dst, 0, src, 0, bm_mem_get_device_size(src));
 }
 
 int LLama2::forward_first(std::vector<int> &tokens) {
-  // make inputs
   std::vector<int> input_ids(SEQLEN, 0);
-  std::vector<int> position_id(SEQLEN, 0);  
+  std::vector<int> position_id(SEQLEN, 0);
   std::vector<uint16_t> attention_mask(SEQLEN * SEQLEN, ATTENTION_MASK);
   std::copy(tokens.begin(), tokens.end(), input_ids.data());
-  token_length = tokens.size();
-  
-  std::copy(tokens.begin(), tokens.end(), input_ids.data());
+
   for (int i = 0; i < token_length; i++) {
     position_id[i] = i;
   }
-
   for (int i = 0; i < token_length; i++) {
     for (int j = 0; j < SEQLEN; j++) {
       if (j <= i) {
@@ -270,64 +177,36 @@ int LLama2::forward_first(std::vector<int> &tokens) {
   }
 
   // forward embeding
-  std::vector<int> input_nums(device_num, 1);
-  std::vector<void*> datas(device_num, input_ids.data());
-  bmrt_memcpy_s2d_parallel(p_bmrt, inputs_embed_512.data(), datas.data(),
-                          input_nums.data(), device_num);
-  auto ret =
-      bmrt_launch_tensor_ex(p_bmrt, name_embed.c_str(),
-                            inputs_embed_512.data(), inputs_embed_512.size(),
-                            outputs_embed_512.data(), outputs_embed_512.size(),
-                            true, false);
-  assert(ret);
-  bm_thread_sync(bm_handle);
+  auto &in_mem = net_embed->stages[0].input_mems[0];
+  auto &out_mem = net_embed->stages[0].output_mems[0];
+  bm_memcpy_s2d(bm_handle, in_mem, (void *)input_ids.data());
+  net_launch(net_embed); // prefil embedding
 
   // forward blocks
-  std::vector<void*> pos_id_datas(device_num, position_id.data());
-  std::vector<void*> in_attn_datas(device_num, attention_mask.data());
-  bmrt_memcpy_s2d_parallel(p_bmrt, inputs_pid.data(), pos_id_datas.data(),
-                          input_nums.data(), device_num);
-  bmrt_memcpy_s2d_parallel(p_bmrt, inputs_attention.data(),in_attn_datas.data(),
-                          input_nums.data(), device_num);
-
-  auto embed_512 = outputs_embed_512;
-  std::vector<bm_tensor_t> inputs_block;
-  std::vector<bm_tensor_t> outputs_block;
-  for (int i = 0; i < device_num; ++i) {
-    embed_512[i].shape = net_blocks[0]->stages[0].input_shapes[0];
-    inputs_block.push_back(embed_512[i]);
-    inputs_block.push_back(inputs_pid[i]);
-    inputs_block.push_back(inputs_attention[i]);
-    outputs_block.push_back(embed_512[i]);
-    outputs_block.push_back(past_key[0][i]);
-    outputs_block.push_back(past_value[0][i]);
-  }
-  
-  for (int i = 0; i < NUM_LAYERS; i++) {
-    for (int j = 0; j < device_num; ++j) {
-      outputs_block[1 + j * 3] = past_key[i][j];
-      outputs_block[2 + j * 3] = past_value[i][j];
+  for (int idx = 0; idx < NUM_LAYERS; idx++) {
+    auto &in0_mem = net_blocks[idx]->stages[0].input_mems[0];
+    auto &in1_mem = net_blocks[idx]->stages[0].input_mems[1];
+    auto &in2_mem = net_blocks[idx]->stages[0].input_mems[2];
+    d2d(in0_mem, out_mem);
+    if (idx == 0) {
+      // only first time need copy
+      bm_memcpy_s2d(bm_handle, in1_mem, (void *)position_id.data());
+      bm_memcpy_s2d(bm_handle, in2_mem, (void *)attention_mask.data());
     }
-    ret = bmrt_launch_tensor_ex(p_bmrt, name_blocks[i].c_str(),
-                                inputs_block.data(), inputs_block.size(),
-                                outputs_block.data(), outputs_block.size(),
-                                true, false);
-    assert(ret);
-    bm_thread_sync(bm_handle);
+    net_launch(net_blocks[idx]);
+    out_mem = net_blocks[idx]->stages[0].output_mems[0];
+    d2d(past_key[idx], net_blocks[idx]->stages[0].output_mems[1]);
+    d2d(past_value[idx], net_blocks[idx]->stages[0].output_mems[2]);
   }
 
-  int bytes = embed_512[0].device_mem.size / SEQLEN;
-  bm_memcpy_d2d_byte(bm_handle, inputs_lm[0].device_mem, 0,
-                     embed_512[0].device_mem, (token_length - 1) * bytes,
-                     bytes);
-  ret = bmrt_launch_tensor_ex(p_bmrt, name_lm.c_str(), &inputs_lm[0], 1,
-                              &outputs_lm[0], 1,
-                              true, false);
-  assert(ret);
-  bm_thread_sync(bm_handle);
-  
+  int bytes = out_mem.size / SEQLEN;
+  auto &lm_in_mem = net_lm->stages[0].input_mems[0];
+  auto &lm_out_mem = net_lm->stages[0].output_mems[0];
+  bm_memcpy_d2d_byte(bm_handle, lm_in_mem, 0, out_mem,
+                     (tokens.size() - 1) * bytes, bytes);
+  net_launch(net_lm);
   int token = 0;
-  bm_memcpy_d2s(bm_handle, (void *)&token, outputs_lm[0].device_mem);
+  bm_memcpy_d2s(bm_handle, (void *)&token, lm_out_mem);
   return token;
 }
 
@@ -336,93 +215,75 @@ int LLama2::forward_next(int cur_token) {
   for (int i = token_length - 1; i < SEQLEN; i++) {
     attention_mask[i] = ATTENTION_MASK;
   }
-  int32_t position_id = token_length - 1;
-
+  size_t position_id = token_length - 1;
   // embedding
-  std::vector<bm_tensor_t> inputs_embed;
-  std::vector<void*> input_datas;
-  std::vector<int> input_nums(device_num, 1);
-  for (int i = 0; i < device_num; ++i) {
-    inputs_embed.push_back(outputs_lm[i]); // token_id
-    inputs_embed[i].shape = net_embed_cache->stages[0].input_shapes[0];
-    input_datas.push_back((void*)(&cur_token));
-  }
-  bmrt_memcpy_s2d_parallel(p_bmrt, inputs_embed.data(), input_datas.data(),
-                          input_nums.data(), device_num);
-  auto ret = bmrt_launch_tensor_ex(p_bmrt, name_embed_cache.c_str(),
-                                  inputs_embed.data(), inputs_embed.size(),
-                                  inputs_lm.data(), inputs_lm.size(), true, false);
-  assert(ret);
-  bm_thread_sync(bm_handle);
-
+  auto &lm_in_mem = net_lm->stages[0].input_mems[0];
+  auto &lm_out_mem = net_lm->stages[0].output_mems[0];
+  auto &in_mem = net_embed_cache->stages[0].input_mems[0];
+  auto &out_mem = net_embed_cache->stages[0].output_mems[0];
+  d2d(in_mem, lm_out_mem);
+  net_launch(net_embed_cache);
   // blocks
-  std::vector<void*> pid_datas(device_num, &position_id);
-  std::vector<void*> attn_datas(device_num, attention_mask.data());
-  bmrt_memcpy_s2d_parallel(p_bmrt, next_pid.data(), pid_datas.data(),
-                          input_nums.data(), device_num);
-  bmrt_memcpy_s2d_parallel(p_bmrt, next_attention.data(), attn_datas.data(),
-                          input_nums.data(), device_num);
-  std::vector<bm_tensor_t> embed_1 = inputs_lm;
-  for (int i = 0; i < device_num; ++i) {
-    embed_1[i].shape = net_blocks_cache[0]->stages[0].input_shapes[0];
-  }
-  std::vector<bm_tensor_t> inputs_block;
-  std::vector<bm_tensor_t> outputs_block;
-  for (int i = 0; i < device_num; ++i) {
-    inputs_block.push_back(embed_1[i]);
-    inputs_block.push_back(next_pid[i]);
-    inputs_block.push_back(next_attention[i]);
-    inputs_block.push_back(past_key[0][i]);
-    inputs_block.push_back(past_value[0][i]);
-    outputs_block.push_back(embed_1[i]);
-    outputs_block.push_back(present_key_cache[i]);
-    outputs_block.push_back(present_value_cache[i]);
-  }
-  for (int i = 0; i < NUM_LAYERS; i++) {
-    for (int j = 0; j < device_num; ++j) {
-      inputs_block[3 + j * 5] = past_key[i][j];
-      inputs_block[4 + j * 5] = past_value[i][j];
-      int bytes = bm_mem_get_device_size(past_key[0][j].device_mem) / SEQLEN; // must in loop when devices size = 6
-      int token_offset = (token_length - 1) * bytes;
-      bm_set_device_mem(&outputs_block[1 + j * 3].device_mem, bytes,
-          bm_mem_get_device_addr(past_key[i][j].device_mem) + token_offset);
-      bm_set_device_mem(&outputs_block[2 + j * 3].device_mem, bytes,
-          bm_mem_get_device_addr(past_value[i][j].device_mem) + token_offset);
+  int bytes =
+      bm_mem_get_device_size(net_blocks_cache[0]->stages[0].output_mems[1]);
+  int token_offset = (token_length - 1) * bytes;
+  for (int idx = 0; idx < NUM_LAYERS; idx++) {
+    auto &in0_mem = net_blocks_cache[idx]->stages[0].input_mems[0];
+    auto &in1_mem = net_blocks_cache[idx]->stages[0].input_mems[1];
+    auto &in2_mem = net_blocks_cache[idx]->stages[0].input_mems[2];
+    auto &in3_mem = net_blocks_cache[idx]->stages[0].input_mems[3];
+    auto &in4_mem = net_blocks_cache[idx]->stages[0].input_mems[4];
+    auto &out0_mem = net_blocks_cache[idx]->stages[0].output_mems[0];
+    auto &out1_mem = net_blocks_cache[idx]->stages[0].output_mems[1];
+    auto &out2_mem = net_blocks_cache[idx]->stages[0].output_mems[2];
+    d2d(in0_mem, out_mem);
+    if (io_alone) {
+      if (idx == 0) {
+        bm_memcpy_s2d(bm_handle, in1_mem, (void *)&position_id);
+        bm_memcpy_s2d(bm_handle, in2_mem, (void *)attention_mask.data());
+      } else {
+        d2d(in1_mem, net_blocks_cache[0]->stages[0].input_mems[1]);
+        d2d(in2_mem, net_blocks_cache[0]->stages[0].input_mems[2]);
+      }
+    } else {
+      if (idx == 0) {
+        bm_memcpy_s2d(bm_handle, in1_mem, (void *)&position_id);
+        bm_memcpy_s2d(bm_handle, in2_mem, (void *)attention_mask.data());
+      }
+      d2d(in3_mem, past_key[idx]);
+      d2d(in4_mem, past_value[idx]);
     }
-    ret = bmrt_launch_tensor_ex(p_bmrt, name_blocks_cache[i].c_str(),
-                                inputs_block.data(), inputs_block.size(),
-                                outputs_block.data(), outputs_block.size(),
-                                true, false);
-    assert(ret);
-    bm_thread_sync(bm_handle);
+    net_launch(net_blocks_cache[idx]);
+    out_mem = out0_mem;
+    bm_memcpy_d2d_byte(bm_handle, past_key[idx], token_offset, out1_mem, 0,
+                       bytes);
+    bm_memcpy_d2d_byte(bm_handle, past_value[idx], token_offset, out2_mem, 0,
+                       bytes);
   }
-
-  ret = bmrt_launch_tensor_ex(p_bmrt, name_lm.c_str(), &inputs_lm[0], 1,
-                              &outputs_lm[0], 1, true, false);
-  assert(ret);
-  bm_thread_sync(bm_handle);
-
+  d2d(lm_in_mem, out_mem);
+  net_launch(net_lm);
   int token = 0;
-  bm_memcpy_d2s(bm_handle, (void *)&token, outputs_lm[0].device_mem);
+  bm_memcpy_d2s(bm_handle, (void *)&token, lm_out_mem);
   return token;
 }
 
-std::string LLama2::build_prompt(std::string query, std::vector<std::pair<std::string, std::string>> history_vector) {
-    std::string prompt = sys_config;
-    for (const auto& item : history_vector) {
-      prompt += item.first + " [/INST] " + item.second + "</s><s>[INST]] ";
-    }
-    prompt += query + " [/INST] ";
-    return prompt;
+std::string LLama2::build_prompt(
+    std::string query,
+    std::vector<std::pair<std::string, std::string>> history_vector) {
+  std::string prompt = sys_config;
+  for (const auto &item : history_vector) {
+    prompt += item.first + " [/INST] " + item.second + "</s><s>[INST]] ";
+  }
+  prompt += query + " [/INST] ";
+  return prompt;
 }
-
 
 void LLama2::chat() {
   while (true) {
     std::cout << "\nQuestion: ";
     std::string input_str;
     std::getline(std::cin, input_str);
-    if (input_str == "exit") {
+    if (input_str == "exit" || input_str == "quit") {
       break;
     }
 
@@ -439,7 +300,6 @@ void LLama2::answer(const std::string &input_str) {
   int tok_num = 1;
   std::vector<int> tokens;
   sentencepiece.Encode(sentence_input, &tokens);
-  // tokens.insert(tokens.begin(), 1);
   if (input_str.empty()) {
     printf("Sorry: your question is too wierd!!\n");
     cur_anser.clear();
@@ -452,9 +312,9 @@ void LLama2::answer(const std::string &input_str) {
     cur_anser.clear();
     printf("Error: your question is too large!\n");
     size_t half_size = history_vector.size() / 2;
-    history_vector.erase(history_vector.begin(), history_vector.begin() + half_size);
+    history_vector.erase(history_vector.begin(),
+                         history_vector.begin() + half_size);
     return;
-
   }
   int pre_token = 0;
   auto t0 = std::chrono::system_clock::now();
@@ -470,9 +330,7 @@ void LLama2::answer(const std::string &input_str) {
     std::string diff = word.substr(pre_word.size());
     cur_anser += diff;
     std::cout << diff << std::flush;
-    if (token_length < SEQLEN) {
-      token_length++;
-    }
+    token_length++;
     tok_num++;
     token = forward_next(token);
   }
@@ -482,62 +340,36 @@ void LLama2::answer(const std::string &input_str) {
   printf("\n\nfirst token latency: %f s", (use0.count() * 1e-6));
   printf("\nspeed: %f token/s\n", tok_num / (use1.count() * 1e-6));
   if (token_length >= SEQLEN) {
-    history_vector.push_back({input_str, cur_anser}); 
+    history_vector.push_back({input_str, cur_anser});
     cur_anser.clear();
 
     size_t half_size = history_vector.size() / 2;
-    history_vector.erase(history_vector.begin(), history_vector.begin() + half_size);
+    history_vector.erase(history_vector.begin(),
+                         history_vector.begin() + half_size);
   } else {
     history_vector.push_back({input_str, cur_anser});
     cur_anser.clear();
   }
 }
 
-static void split(const std::string &s, const std::string &delim,
-                  std::vector<std::string> &ret) {
-  size_t last = 0;
-  size_t index = s.find_first_of(delim, last);
-  while (index != std::string::npos) {
-    ret.push_back(s.substr(last, index - last));
-    last = index + 1;
-    index = s.find_first_of(delim, last);
-  }
-  if (last < s.length()) {
-    ret.push_back(s.substr(last));
-  }
-}
-
-static std::vector<int> parseCascadeDevices(const std::string &str) {
-  std::vector<int> devices;
-  std::vector<std::string> sub_str;
-  split(str, ",", sub_str);
-  for (auto &s : sub_str) {
-    devices.push_back(std::atoi(s.c_str()));
-  }
-  return devices;
-}
-
 void Usage() {
   printf("Usage:\n"
          "  --help         : Show help info.\n"
          "  --model        : Set model path \n"
-         "  --tokenizer    : Set tokenizer path \n"
-         "  --devid        : Set devices to run for model, e.g. 1,2. if not "
-         "set, use 0\n");
+         "  --tokenizer    : Set tokenizer path \n");
 }
 
-void processArguments(int argc, char *argv[], std::string &model_path, std::string &tokenizer_path,
-                      std::vector<int> &devices) {
+void processArguments(int argc, char *argv[], std::string &model_path,
+                      std::string &tokenizer_path) {
   struct option longOptions[] = {{"model", required_argument, nullptr, 'm'},
                                  {"tokenizer", required_argument, nullptr, 't'},
-                                 {"devid", required_argument, nullptr, 'd'},
                                  {"help", no_argument, nullptr, 'h'},
                                  {nullptr, 0, nullptr, 0}};
 
   int optionIndex = 0;
   int option;
 
-  while ((option = getopt_long(argc, argv, "m:t:d:h:", longOptions,
+  while ((option = getopt_long(argc, argv, "m:t:h:", longOptions,
                                &optionIndex)) != -1) {
     switch (option) {
     case 'm':
@@ -545,9 +377,6 @@ void processArguments(int argc, char *argv[], std::string &model_path, std::stri
       break;
     case 't':
       tokenizer_path = optarg;
-      break;
-    case 'd':
-      devices = parseCascadeDevices(optarg);
       break;
     case 'h':
       Usage();
@@ -564,10 +393,9 @@ void processArguments(int argc, char *argv[], std::string &model_path, std::stri
 int main(int argc, char **argv) {
   // set your bmodel path here
   printf("Demo for LLama2 in BM1684X\n");
-  std::string model_path = "../models/llama2-7b_int4_1dev.bmodel";
-  std::string tokenizer_path = "../support/tokenizer.model";
-  std::vector<int> devices = {11};
-  processArguments(argc, argv, model_path, tokenizer_path, devices);
+  std::string model_path;
+  std::string tokenizer_path = "tokenizer.model";
+  processArguments(argc, argv, model_path, tokenizer_path);
   if (model_path.empty()) {
     Usage();
     exit(EXIT_FAILURE);
@@ -575,10 +403,9 @@ int main(int argc, char **argv) {
 
   LLama2 llama;
   printf("Init Environment ...\n");
-  llama.init(devices, model_path, tokenizer_path);
+  llama.init(model_path, tokenizer_path);
   printf("==========================\n");
   llama.chat();
   llama.deinit();
   return 0;
 }
-

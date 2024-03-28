@@ -8,7 +8,7 @@ quantize_args=""
 chip_args=""
 name=""
 num_layers=
-chip="bm1684x"
+chip="bm1688"
 
 onnx_dir=$PWD/tmp/onnx
 
