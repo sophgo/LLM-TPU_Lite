@@ -51,7 +51,7 @@ git clone https://github.com/sophgo/LLM-TPU_lite.git
 
 # 常见问题
 
-### Q1：如果我的环境没有联网，那么怎么跑通大语言模型？
+## Q1：如果我的环境没有联网，那么怎么跑通大语言模型？
 
 A：您可以先在联网的大机器上git clone本项目，之后运行 `./run.sh --model qwen1.5`
 
