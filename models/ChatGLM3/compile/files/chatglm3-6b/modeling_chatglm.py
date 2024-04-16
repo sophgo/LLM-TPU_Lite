@@ -220,7 +220,6 @@ class CoreAttention(torch.nn.Module):
 
     def forward(self, query_layer, key_layer, value_layer, attention_mask):
         pytorch_major_version = int(torch.__version__.split('.')[0])
-        #if pytorch_major_version >= 2:
         if False:
             query_layer, key_layer, value_layer = [k.permute(1, 2, 0, 3) for k in [query_layer, key_layer, value_layer]]
             if attention_mask is None and query_layer.shape[2] == key_layer.shape[2]:
@@ -279,7 +278,6 @@ class CoreAttention(torch.nn.Module):
                 attention_mask = ~attention_mask
             if attention_mask is not None:
                 attention_scores = attention_scores + attention_mask
-                #attention_scores = attention_scores.masked_fill(attention_mask, float("-inf"))
             attention_probs = F.softmax(attention_scores, dim=-1)
             attention_probs = attention_probs.type_as(value_layer)
 
@@ -413,9 +411,10 @@ class SelfAttention(torch.nn.Module):
         # adjust key and value for inference
         if kv_cache is not None:
             cache_k, cache_v = kv_cache
+            kv_cache = (key_layer, value_layer)
             key_layer = torch.cat((cache_k, key_layer), dim=0)
             value_layer = torch.cat((cache_v, value_layer), dim=0)
-        if use_cache:
+        elif use_cache:
             kv_cache = (key_layer, value_layer)
         else:
             kv_cache = None
@@ -636,8 +635,7 @@ class GLMTransformer(torch.nn.Module):
                     attention_mask,
                     rotary_pos_emb,
                     kv_caches[index],
-                    use_cache,
-                    use_reentrant=False
+                    use_cache
                 )
             else:
                 layer_ret = layer(
@@ -700,9 +698,9 @@ class ChatGLMPreTrainedModel(PreTrainedModel):
         position_ids = torch.arange(seq_length, dtype=torch.long, device=device).unsqueeze(0).repeat(batch_size, 1)
         return position_ids
 
-    def gradient_checkpointing_enable(self, gradient_checkpointing_kwargs=None):
-        if not self.supports_gradient_checkpointing:
-            raise ValueError(f"{self.__class__.__name__} does not support gradient checkpointing.")
+    def _set_gradient_checkpointing(self, module, value=False):
+        if isinstance(module, GLMTransformer):
+            module.gradient_checkpointing = value
 
 
 class Embedding(torch.nn.Module):
@@ -770,9 +768,6 @@ class ChatGLMModel(ChatGLMPreTrainedModel):
 
     def get_input_embeddings(self):
         return self.embedding.word_embeddings
-
-    def set_input_embeddings(self, value):
-        self.embedding.word_embeddings = value
 
     def get_prompt(self, batch_size, device, dtype=torch.half):
         prefix_tokens = self.prefix_tokens.unsqueeze(0).expand(batch_size, -1).to(device)
@@ -1006,10 +1001,7 @@ class ChatGLMForConditionalGeneration(ChatGLMPreTrainedModel):
         content = ""
         history = deepcopy(history)
         for response in output.split("<|assistant|>"):
-            if "\n" in response:
-                metadata, content = response.split("\n", maxsplit=1)
-            else:
-                metadata, content = "", response
+            metadata, content = response.split("\n", maxsplit=1)
             if not metadata.strip():
                 content = content.strip()
                 history.append({"role": "assistant", "metadata": metadata, "content": content})

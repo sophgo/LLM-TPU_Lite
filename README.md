@@ -6,11 +6,11 @@
 
 我们已经部署过的开源模型如下：
 
-|Model                |INT4                |INT8                |FP16/BF16           |Huggingface Link                                                          |
-|:-                   |:-                  |:-                  |:-                  |:-                                                                        |
-|ChatGLM3-6B          |:white\_check\_mark:|:white\_check\_mark:|:white\_check\_mark:|[LINK](https://huggingface.co/THUDM/chatglm3-6b)                          |
-|Qwen1.5-1.8B         |:white\_check\_mark:|:white\_check\_mark:|:white\_check\_mark:|[LINK](https://huggingface.co/Qwen/Qwen1.5-1.8B-Chat)                     |
-|Llama2-7B            |:white\_check\_mark:|:white\_check\_mark:|:white\_check\_mark:|[LINK](https://huggingface.co/meta-llama/Llama-2-7b-chat-hf)              |
+|Model                |INT4                |Huggingface Link                                                          |
+|:-                   |:-                  |:-                                                                        |
+|ChatGLM3-6B          |:white\_check\_mark:|[LINK](https://huggingface.co/THUDM/chatglm3-6b)                          |
+|Qwen1.5-1.8B         |:white\_check\_mark:|[LINK](https://huggingface.co/Qwen/Qwen1.5-1.8B-Chat)                     |
+|Llama2-7B            |:white\_check\_mark:|[LINK](https://huggingface.co/meta-llama/Llama-2-7b-chat-hf)              |
 
 
 如果您想要知道转换细节和源码，可以到本项目[models](./models)子目录查看各类模型部署细节。

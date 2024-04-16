@@ -145,12 +145,6 @@ void LLama2::init(std::string model_path, std::string tokenizer_path) {
 }
 
 void LLama2::deinit() {
-  if (false == io_alone) {
-    for (int i = 0; i < NUM_LAYERS; i++) {
-      bm_free_device(bm_handle, past_key[i]);
-      bm_free_device(bm_handle, past_value[i]);
-    }
-  }
   bmrt_destroy(p_bmrt);
   bm_dev_free(bm_handle);
 }
@@ -392,7 +386,7 @@ void processArguments(int argc, char *argv[], std::string &model_path,
 
 int main(int argc, char **argv) {
   // set your bmodel path here
-  printf("Demo for LLama2 in BM1684X\n");
+  printf("Demo for LLama2 in BM1688\n");
   std::string model_path;
   std::string tokenizer_path = "tokenizer.model";
   processArguments(argc, argv, model_path, tokenizer_path);

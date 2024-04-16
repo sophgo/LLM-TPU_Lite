@@ -1,15 +1,14 @@
 #!/bin/bash
 set -ex
 models=
-mode="f16"
+mode="int4"
 folder="tmp"
-num_device=1
 mode_args=""
-device_args=""
-quantize_args="--quantize F16"
+quantize_args="--quantize W4F16"
 name=""
 num_layers=
 out_model=$name.bmodel
+num_core=""
 
 while [[ $# -gt 0 ]]; do
     key="$1"
@@ -19,12 +18,12 @@ while [[ $# -gt 0 ]]; do
             mode="$2"
             shift 2
             ;;
-        --num_device)
-            num_device="$2"
-            shift 2
-            ;;
         --name)
             name="$2"
+            shift 2
+            ;;
+        --num_core)
+            num_core="$2"
             shift 2
             ;;
         *)
@@ -39,7 +38,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [ "$name" = "chatglm3-6b" ]; then
-  num_layers=27
+  num_layers=28
   echo "Compile ChatGLM3-6B"
 else
   >&2 echo -e "Error: Invalid name $name, the input name must be \033[31mchatglm3-6b\033[0m"
@@ -57,14 +56,9 @@ else
     exit 1
 fi
 
-if [ x$num_device != x1 ]; then
-    device_args="--num_device $num_device"
-    out_model=$name'_'$mode'_'$num_device'dev.bmodel'
-else
-    out_model=$name'_'$mode'_1dev.bmodel'
-fi
+out_model=$name'_'$mode'_'$num_core'core.bmodel'
 
-outdir=${folder}/embedding
+outdir=${folder}/'embedding_'$num_core'core'
 mkdir -p $outdir
 pushd $outdir
 
@@ -79,8 +73,8 @@ model_deploy.py \
     --quantize F16 \
     --quant_input \
     --quant_output \
-    --chip bm1684x \
-    $device_args \
+    --chip bm1688 \
+    --num_core $num_core \
     --model embedding.bmodel
 
 model_transform.py \
@@ -95,8 +89,8 @@ model_deploy.py \
     --quantize F16 \
     --quant_input \
     --quant_output \
-    --chip bm1684x \
-    $device_args \
+    --chip bm1688 \
+    --num_core $num_core \
     --model embedding_cache.bmodel
 
 rm *.npz
@@ -107,7 +101,7 @@ popd
 
 echo $models
 
-outdir=tmp/$mode"_"$num_device"dev"/lm_head
+outdir='tmp/'$name'_bm1688_'$mode'/lm_head_'$num_core'core'
 mkdir -p $outdir
 pushd $outdir
 
@@ -121,8 +115,8 @@ model_deploy.py \
     $quantize_args \
     --quant_input \
     --quant_output \
-    --chip bm1684x \
-    $device_args \
+    --chip bm1688 \
+    --num_core $num_core \
     --model lm_head.bmodel
 
 rm *.npz
@@ -132,13 +126,13 @@ popd
 
 echo $models
 
-outdir=tmp/$mode"_"$num_device"dev"/block
+outdir='tmp/'$name'_bm1688_'$mode'/block_'$num_core'core'
 mkdir -p $outdir
 
 pushd $outdir
 mkdir -p $outdir
 
-for ((i=0; i<=$num_layers; i++)); do
+for ((i=0; i<$num_layers; i++)); do
 
     model_transform.py \
         --model_name block_$i \
@@ -150,8 +144,8 @@ for ((i=0; i<=$num_layers; i++)); do
         $quantize_args \
         --quant_input \
         --quant_output \
-        --chip bm1684x \
-        $device_args \
+        --chip bm1688 \
+        --num_core $num_core \
         --model block_$i.bmodel
 
     model_transform.py \
@@ -164,8 +158,9 @@ for ((i=0; i<=$num_layers; i++)); do
         $quantize_args \
         --quant_input \
         --quant_output \
-        --chip bm1684x \
-        $device_args \
+        --chip bm1688 \
+        --num_core $num_core \
+        --addr_mode io_alone \
         --model block_cache_$i.bmodel
 
     rm *.npz

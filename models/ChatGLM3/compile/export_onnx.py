@@ -16,6 +16,7 @@ from transformers import AutoModel, AutoTokenizer
 
 parser = argparse.ArgumentParser(description='export onnx.')
 parser.add_argument('--model_path', type=str, help='path to the torch model.')
+parser.add_argument('--seq_length', type=int, default=512, help="sequence length")
 
 args = parser.parse_args()
 
@@ -32,7 +33,7 @@ config = origin_model.config
 transformer = origin_model.transformer
 layers = transformer.encoder.layers
 
-SEQ_LENGTH = transformer.seq_length
+SEQ_LENGTH = args.seq_length
 NUM_LAYERS = config.num_layers
 HIDDEN_SIZE = config.hidden_size
 NUM_ATTENTION_HEADS = config.num_attention_heads
@@ -83,7 +84,7 @@ class BlockCache(torch.nn.Module):
                                             kv_cache=(past_k, past_v),
                                             rotary_pos_emb=rotary_pos_emb)
         present_k, present_v = past_kv
-        return hidden_states, present_k[1:], present_v[1:]
+        return hidden_states, present_k, present_v
 
 
 class LmHead(torch.nn.Module):
@@ -102,7 +103,7 @@ def convert_block(layer_id):
     model = Block(layer_id)
     hidden_states = torch.randn((SEQ_LENGTH, 1, HIDDEN_SIZE))
     position_ids = torch.tensor([range(SEQ_LENGTH)], dtype=torch.long)
-    attention_mask = -1000 * torch.ones((1, 1, SEQ_LENGTH, SEQ_LENGTH), dtype=torch.float32).triu(diagonal=1)
+    attention_mask = torch.ones((1, 1, SEQ_LENGTH, SEQ_LENGTH), dtype=torch.float32).triu(diagonal=1)
 
     torch.onnx.export(
         model, (hidden_states, position_ids, attention_mask),
@@ -118,7 +119,7 @@ def convert_block_cache(layer_id):
     model = BlockCache(layer_id)
     hidden_states = torch.randn((1, 1, HIDDEN_SIZE))
     position_ids = torch.tensor([range(1)], dtype=torch.long)
-    attention_mask = -1000 * torch.ones((1, 1, 1, SEQ_LENGTH + 1), dtype=torch.float32).triu(diagonal=1)
+    attention_mask = torch.ones((1, 1, 1, SEQ_LENGTH + 1), dtype=torch.float32).triu(diagonal=1)
     past_k = torch.randn((SEQ_LENGTH, 1, 2, HEAD_DIM))
     past_v = torch.randn((SEQ_LENGTH, 1, 2, HEAD_DIM))
 

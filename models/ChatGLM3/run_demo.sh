@@ -7,10 +7,10 @@ if [ ! -d "../../bmodels" ]; then
   mkdir ../../bmodels
 fi
 
-if [ ! -f "../../bmodels/chatglm3-6b_int4_1dev.bmodel" ]; then
+if [ ! -f "../../bmodels/chatglm3-6b_int4_2core.bmodel" ]; then
   pip3 install dfss
-  python3 -m dfss --url=open@sophgo.com:/LLM/LLM-TPU/chatglm3-6b_int4_1dev.bmodel
-  mv chatglm3-6b_int4_1dev.bmodel ../../bmodels
+  python3 -m dfss --url=open@sophgo.com:/ext_model_information/LLM/LLM-TPU_Lite/chatglm3-6b_int4_2core.bmodel
+  mv chatglm3-6b_int4_2core.bmodel ../../bmodels
 else
   echo "Bmodel Exists!"
 fi
@@ -24,4 +24,4 @@ else
 fi
 
 # run demo
-./demo/chatglm --model ../../bmodels/chatglm3-6b_int4_1dev.bmodel --tokenizer ./support/tokenizer.model --devid 0
+./demo/chatglm --model ../../bmodels/chatglm3-6b_int4_2core.bmodel --tokenizer ./support/tokenizer.model
