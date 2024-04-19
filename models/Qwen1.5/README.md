@@ -28,7 +28,7 @@ cd DeviceMemoryModificationKit
 tar xvf memory_edit_{vx.x}.tar.xz #vx.x是版本号
 cd memory_edit
 ./memory_edit.sh -p #这个命令会打印当前的内存布局信息
-./memory_edit.sh -c -npu 7168 -vpu 0 -vpp 0 #npu也可以访问vpu和vpp的内存
+./memory_edit.sh -c -npu 6800 -vpu 0 -vpp 40 #npu也可以访问vpu和vpp的内存
 sudo cp /data/memedit/DeviceMemoryModificationKit/memory_edit/boot.itb /boot/boot.itb && sync
 sudo reboot
 ```

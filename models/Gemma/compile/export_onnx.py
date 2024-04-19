@@ -270,10 +270,8 @@ def test_net_with_mask():
     for i in range(NUM_LAYERS):
         out, k, v = blocks[i](out.bfloat16(), position_ids,
                               attention_mask.bfloat16())
-        k[:, :, SEQ_LENGTH - token_len:] = k[:, :, :token_len]
-        v[:, :, SEQ_LENGTH - token_len:] = v[:, :, :token_len]
-        k[:, :, :SEQ_LENGTH - token_len] = 0
-        v[:, :, :SEQ_LENGTH - token_len] = 0
+        k[:,:,token_len:,:] = 0
+        v[:,:,token_len:,:] = 0
         k_cache.append(k)
         v_cache.append(v)
     out = out[:, token_len - 1:token_len].view(1, 1, HIDDEN_SIZE)
@@ -289,15 +287,13 @@ def test_net_with_mask():
         position_ids = torch.tensor([[token_len - 1]]).to("cuda")
         attention_mask = torch.zeros(
             (1, 1, 1, SEQ_LENGTH + 1)).float().to("cuda")
-        attention_mask[:, :, :, :SEQ_LENGTH + 1 - token_len] = -10000.0
+        attention_mask[:, :, :, token_len-1:SEQ_LENGTH] = -10000.0
         for i in range(NUM_LAYERS):
             out, k, v = block_kvs[i](out.bfloat16(), position_ids,
                                      attention_mask.bfloat16(),
                                      k_cache[i].bfloat16(), v_cache[i].bfloat16())
-            k_tmp = torch.cat([k_cache[i][:, :, 1:], k], -2)
-            v_tmp = torch.cat([v_cache[i][:, :, 1:], v], -2)
-            k_cache[i][:] = k_tmp[:]
-            v_cache[i][:] = v_tmp[:]
+            k_cache[i][:,:,token_len-1,:] = k[:,:,:,:]
+            v_cache[i][:,:,token_len-1,:] = v[:,:,:,:]
         token = lm(out.bfloat16()).view(1)
         out_ids.append(int(token))
         word = tokenizer.decode([int(token)])
