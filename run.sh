@@ -29,6 +29,7 @@ declare -A model_to_demo=(
     ["llama2"]="Llama2"
     ["qwen1.5"]="Qwen"
     ["minicpm"]="MiniCPM"
+    ["phi-3"]="Phi-3"
 )
 
 # Process Args
@@ -36,7 +37,7 @@ parse_args "$@"
 
 # Check Model Name
 if [[ ! ${model_to_demo[$model]} ]]; then
-    >&2 echo -e "Error: Invalid name $model, the input name must be \033[31mchatglm3|llama2|qwen1.5|minicpm\033[0m"
+    >&2 echo -e "Error: Invalid name $model, the input name must be \033[31mchatglm3|llama2|qwen1.5|minicpm|phi-3\033[0m"
     exit 1
 fi
 

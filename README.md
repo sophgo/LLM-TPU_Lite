@@ -48,6 +48,7 @@ git clone https://github.com/sophgo/LLM-TPU_lite.git
 | Llama2-7B       | ./run.sh --model llama2                     |
 | Qwen1.5-1.8B    | ./run.sh --model qwen1.5                    |
 | MiniCPM-2B      | ./run.sh --model minicpm                    |
+| Phi-3           | ./run.sh --model phi-3                      |
 
 
 
@@ -57,6 +58,6 @@ git clone https://github.com/sophgo/LLM-TPU_lite.git
 
 A：您可以先在联网的大机器上git clone本项目，之后运行 `./run.sh --model qwen1.5`
 
-然后把LLM-TPU的全部文件拷贝到开发板上，必须要是全部文件，包括LLM-TPU/models和LLM-TPU/deploy
+然后把LLM-TPU_LITE的全部文件拷贝到开发板上，必须要是全部文件，包括LLM-TPU_LITE/models，LLM-TPU_LITE/sg_llm
 
 最后再在开发板上运行 `./run.sh --model qwen1.5`
