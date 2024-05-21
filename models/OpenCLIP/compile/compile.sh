@@ -57,6 +57,8 @@ model_transform.py \
     --input_shape [[2,77],[2,77],[1,3,224,224]] \
     --model_def ../onnx/openclip.onnx \
     --mlir openclip.mlir
+    # --test_input input_ref.npz \
+    # --test_result output_top.npz \
 
 
 model_deploy.py \

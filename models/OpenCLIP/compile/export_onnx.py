@@ -8,12 +8,15 @@
 #
 # ==============================================================================
 
+
+# pip install --upgrade transformers=4.4.1
 # python3 export_onnx.py --model_path /workspace/openai/clip-vit-base-patch32
 
 import os
 import torch
 import torch.nn.functional as F
 import argparse
+import numpy as np
 from PIL import Image
 from transformers import CLIPProcessor, CLIPModel
 
@@ -42,7 +45,7 @@ def convert_onnx():
     model = ClipModel()
     processor = CLIPProcessor.from_pretrained(model_path)
     image = Image.open("../000000039769.jpg")
-    inputs = processor(text=["a photo of two cats", "a photo of a dog", "a photo of one cat"],
+    inputs = processor(text=["a photo of two cats", "a photo of a dog"],
                        images=image, return_tensors="pt", padding=True)
     input_ids, attention_mask, pixel_values = inputs[
         'input_ids'], inputs['attention_mask'], inputs['pixel_values']
@@ -57,17 +60,17 @@ def convert_onnx():
                       input_names=['input_ids',
                                    'attention_mask', 'pixel_values'],
                       output_names=['probs'],
-                      dynamic_axes={
-                          'input_ids': {0: 'x'},
-                          'attention_mask': {0: 'x'},
-                          'probs': {1: 'x'}},
+                    #   dynamic_axes={
+                    #       'input_ids': {0: 'x'},
+                    #       'attention_mask': {0: 'x'},
+                    #       'probs': {1: 'x'}},
                       opset_version=15)
 
 
 def test_net_with_mask():
     processor = CLIPProcessor.from_pretrained(model_path)
     image = Image.open("../000000039769.jpg")
-    inputs = processor(text=["a photo of two cats", "a photo of a dog", "a photo of one cat"],
+    inputs = processor(text=["a photo of two cats", "a photo of a dog"],
                        images=image, return_tensors="pt", padding=True)
     input_ids, attention_mask, pixel_values = inputs[
         'input_ids'], inputs['attention_mask'], inputs['pixel_values']
@@ -80,6 +83,15 @@ def test_net_with_mask():
     print("probs:{}".format(probs))
     pad_probs = model(pad_input, pad_mask, pixel_values)
     print("probs with pad:{}".format(pad_probs))
+    # save reference input and output
+    input_ref = {
+        "input_ids": pad_input.numpy().astype(np.int32), "attention_mask": pad_mask.numpy().astype(np.int32), "pixel_values": pixel_values.numpy()
+    }
+    output_ref = {
+        "probs": pad_probs.detach().numpy()
+    }
+    np.savez("input_ref.npz", **input_ref)
+    np.savez("output_ref.npz", **output_ref)
 
 
 # test_net_with_mask()
