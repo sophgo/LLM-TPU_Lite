@@ -241,10 +241,8 @@ def apply_rotary_pos_emb(q, k, cos, sin, position_ids, unsqueeze_dim=1):
     # q_embed = (q * cos) + (rotate_half(q) * sin)
     # k_embed = (k * cos) + (rotate_half(k) * sin)
     orig_dtype = k.dtype
-    cos = cos[position_ids].unsqueeze(unsqueeze_dim)
+    cos = cos[position_ids].unsqueeze(unsqueeze_dim)  # [bs, 1, seq_len, dim]
     sin = sin[position_ids].unsqueeze(unsqueeze_dim)  # [bs, 1, seq_len, dim]
-    cos = cos.transpose(1, 2)
-    sin = sin.transpose(1, 2)
     q_fp32 = q.to(dtype=torch.float32, device=q.device)
     k_fp32 = k.to(dtype=torch.float32, device=k.device)
     q_embed = (q_fp32 * cos) + (rotate_half(q_fp32) * sin)
@@ -369,7 +367,7 @@ class MiniCPMAttention(nn.Module):
         hidden_states: torch.Tensor,
         attention_mask: Optional[torch.Tensor] = None,
         position_ids: Optional[torch.LongTensor] = None,
-        past_key_value: Optional[Tuple[torch.Tensor]] = None,
+        past_key_value: Optional[Cache] = None,
         output_attentions: bool = False,
         use_cache: bool = False,
         **kwargs,
@@ -403,12 +401,11 @@ class MiniCPMAttention(nn.Module):
             key_states = self.k_proj(hidden_states)
             value_states = self.v_proj(hidden_states)
 
-        query_states = query_states.view(bsz, q_len, self.num_heads, self.head_dim)
-        key_states = key_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim)
-        value_states = value_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim)
+        query_states = query_states.view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
+        key_states = key_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
+        value_states = value_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
 
-        # kv_seq_len = key_states.shape[-2]
-        kv_seq_len = key_states.shape[-3]
+        kv_seq_len = key_states.shape[-2]
         if past_key_value is not None:
             if self.layer_idx is None:
                 raise ValueError(
@@ -416,29 +413,25 @@ class MiniCPMAttention(nn.Module):
                     "for auto-regressive decoding with k/v caching, please make sure to initialize the attention class "
                     "with a layer index."
                 )
-            kv_seq_len += past_key_value[0].shape[-3]
-        emb_len = key_states.shape[-3] if past_key_value is None else  past_key_value[0].shape[-3]
-        cos, sin = self.rotary_emb(value_states.to(torch.float32), seq_len=emb_len)
+            kv_seq_len += past_key_value.get_usable_length(kv_seq_len, self.layer_idx)
+        cos, sin = self.rotary_emb(value_states.to(torch.float32), seq_len=kv_seq_len)
 
         query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin, position_ids)
-        past_kv = (key_states, value_states) if use_cache else None
+
         if past_key_value is not None:
-            # key_states = torch.cat([past_key_value[0], key_states], dim=2)
-            # value_states = torch.cat([past_key_value[1], value_states], dim=2)
-            key_states = torch.cat([past_key_value[0], key_states], dim=1)
-            value_states = torch.cat([past_key_value[1], value_states], dim=1)
-        # past_kv = (key_states, value_states) if use_cache else None
+            cache_kwargs = {"sin": sin, "cos": cos}  # Specific to RoPE models
+            key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
 
         key_states = repeat_kv(key_states, self.num_key_value_groups)
         value_states = repeat_kv(value_states, self.num_key_value_groups)
 
-        # attn_weights = torch.matmul(query_states, key_states.transpose(2, 3)) / math.sqrt(self.head_dim)
-        attn_weights = torch.matmul(query_states.transpose(1, 2), key_states.transpose(1, 2).transpose(2, 3)) / math.sqrt(self.head_dim)
+        attn_weights = torch.matmul(query_states, key_states.transpose(2, 3)) / math.sqrt(self.head_dim)
         if attn_weights.size() != (bsz, self.num_heads, q_len, kv_seq_len):
             raise ValueError(
                 f"Attention weights should be of size {(bsz, self.num_heads, q_len, kv_seq_len)}, but is"
                 f" {attn_weights.size()}"
             )
+
         if attention_mask is not None:
             if attention_mask.size() != (bsz, 1, q_len, kv_seq_len):
                 raise ValueError(
@@ -449,7 +442,7 @@ class MiniCPMAttention(nn.Module):
         # upcast attention to fp32
         attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query_states.dtype)
         attn_weights = nn.functional.dropout(attn_weights, p=self.attention_dropout, training=self.training)
-        attn_output = torch.matmul(attn_weights, value_states.transpose(1,2))
+        attn_output = torch.matmul(attn_weights, value_states)
 
         if attn_output.size() != (bsz, self.num_heads, q_len, self.head_dim):
             raise ValueError(
@@ -471,7 +464,7 @@ class MiniCPMAttention(nn.Module):
         if not output_attentions:
             attn_weights = None
 
-        return attn_output, attn_weights, past_kv
+        return attn_output, attn_weights, past_key_value
 
 
 class MiniCPMFlashAttention2(MiniCPMAttention):
@@ -1031,14 +1024,10 @@ class MiniCPMModel(MiniCPMPreTrainedModel):
 
         past_key_values_length = 0
         if use_cache:
-            # if use_legacy_cache:
-            #     past_key_values = DynamicCache.from_legacy_cache(past_key_values)
-            # past_key_values_length = past_key_values.get_usable_length(seq_length)
-
-            seq_length_with_past = seq_length
-            if past_key_values is not None:
-                past_key_values_length = past_key_values[0][0].shape[1]
-                seq_length_with_past = seq_length_with_past + past_key_values_length
+            use_legacy_cache = not isinstance(past_key_values, Cache)
+            if use_legacy_cache:
+                past_key_values = DynamicCache.from_legacy_cache(past_key_values)
+            past_key_values_length = past_key_values.get_usable_length(seq_length)
 
         if position_ids is None:
             device = input_ids.device if input_ids is not None else inputs_embeds.device
@@ -1074,12 +1063,11 @@ class MiniCPMModel(MiniCPMPreTrainedModel):
         # decoder layers
         all_hidden_states = () if output_hidden_states else None
         all_self_attns = () if output_attentions else None
-        # next_decoder_cache = None
-        next_decoder_cache = () if use_cache else None
-        for idx, decoder_layer in enumerate(self.layers):
+        next_decoder_cache = None
+
+        for decoder_layer in self.layers:
             if output_hidden_states:
                 all_hidden_states += (hidden_states,)
-            past_key_value = past_key_values[idx] if past_key_values is not None else None
 
             if self.gradient_checkpointing and self.training:
                 layer_outputs = self._gradient_checkpointing_func(
@@ -1087,7 +1075,7 @@ class MiniCPMModel(MiniCPMPreTrainedModel):
                     hidden_states,
                     attention_mask,
                     position_ids,
-                    past_key_value,
+                    past_key_values,
                     output_attentions,
                     use_cache,
                 )
@@ -1096,7 +1084,7 @@ class MiniCPMModel(MiniCPMPreTrainedModel):
                     hidden_states,
                     attention_mask=attention_mask,
                     position_ids=position_ids,
-                    past_key_value=past_key_value,
+                    past_key_value=past_key_values,
                     output_attentions=output_attentions,
                     use_cache=use_cache,
                 )
@@ -1104,8 +1092,7 @@ class MiniCPMModel(MiniCPMPreTrainedModel):
             hidden_states = layer_outputs[0]
 
             if use_cache:
-                # next_decoder_cache = layer_outputs[2 if output_attentions else 1]
-                next_decoder_cache += (layer_outputs[2 if output_attentions else 1],)
+                next_decoder_cache = layer_outputs[2 if output_attentions else 1]
 
             if output_attentions:
                 all_self_attns += (layer_outputs[1],)
@@ -1116,13 +1103,11 @@ class MiniCPMModel(MiniCPMPreTrainedModel):
         if output_hidden_states:
             all_hidden_states += (hidden_states,)
 
-        # next_cache = None
-        # if use_cache:
-        #     next_cache = next_decoder_cache.to_legacy_cache() if use_legacy_cache else next_decoder_cache
-        next_cache = next_decoder_cache if use_cache else None
+        next_cache = None
+        if use_cache:
+            next_cache = next_decoder_cache.to_legacy_cache() if use_legacy_cache else next_decoder_cache
         if not return_dict:
             return tuple(v for v in [hidden_states, next_cache, all_hidden_states, all_self_attns] if v is not None)
-
         return BaseModelOutputWithPast(
             last_hidden_state=hidden_states,
             past_key_values=next_cache,
