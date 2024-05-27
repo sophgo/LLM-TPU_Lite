@@ -9,7 +9,7 @@
 # ==============================================================================
 
 
-# pip install --upgrade transformers=4.4.1
+# pip install --upgrade transformers=4.41.0
 # python3 export_onnx.py --model_path /workspace/openai/clip-vit-base-patch32
 
 import os
@@ -18,7 +18,8 @@ import torch.nn.functional as F
 import argparse
 import numpy as np
 from PIL import Image
-from transformers import CLIPProcessor, CLIPModel
+from transformers import CLIPProcessor
+from files.clip.modeling_clip import CLIPModel
 
 parser = argparse.ArgumentParser(description='export onnx.')
 parser.add_argument('--model_path', type=str, help='path to the torch model.')

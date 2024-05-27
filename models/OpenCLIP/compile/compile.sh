@@ -57,8 +57,8 @@ model_transform.py \
     --input_shape [[2,77],[2,77],[1,3,224,224]] \
     --model_def ../onnx/openclip.onnx \
     --mlir openclip.mlir
-    # --test_input input_ref.npz \
-    # --test_result output_top.npz \
+    # --test_input ../../input_ref.npz \
+    # --test_result ../../output_top.npz
 
 
 model_deploy.py \
@@ -67,6 +67,8 @@ model_deploy.py \
     --chip bm1688 \
     --num_core $num_core \
     --model ${out_model}
+    # --test_input OpenClip_in_f32.npz \
+    # --test_reference ../../output_top.npz
 
 rm *.npz
 

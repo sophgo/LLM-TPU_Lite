@@ -1,7 +1,8 @@
 from PIL import Image
 import requests
 
-from transformers import CLIPProcessor, CLIPModel
+from transformers import CLIPProcessor
+from compile.files.clip.modeling_clip import CLIPModel
 
 model = CLIPModel.from_pretrained("/workspace/openai/clip-vit-base-patch32")
 processor = CLIPProcessor.from_pretrained("/workspace/openai/clip-vit-base-patch32")
