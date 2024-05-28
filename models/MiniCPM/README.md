@@ -74,7 +74,7 @@ cmake ..
 make
 ```
 
-编译生成minicpm可执行程序，将`minicpm`放到demo目录下，同时按照下列方式指定芯片数量和bmodel路径。
+编译生成minicpm可执行程序，将`minicpm`放到demo目录下，同时按照下列方式指定bmodel路径。
 运行`minicpm`，如运行双核模型`minicpm-2b_int4_2core.bmodel`:
 ```shell
 ./minicpm --model ../compile/minicpm-2b_int4_2core.bmodel --tokenizer ../support/tokenizer.model

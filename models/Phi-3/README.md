@@ -74,7 +74,7 @@ cmake ..
 make
 ```
 
-编译生成phi-3可执行程序，将`phi-3`放到demo目录下，同时按照下列方式指定芯片数量和bmodel路径。
+编译生成phi-3可执行程序，将`phi-3`放到demo目录下，同时按照下列方式指定bmodel路径。
 运行`phi-3`，如运行双核模型`phi-3_int4_2core.bmodel`:
 ```shell
 ./phi-3 --model ../compile/phi-3_int4_2core.bmodel --tokenizer ../support/tokenizer.model

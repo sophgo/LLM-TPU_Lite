@@ -30,6 +30,7 @@ declare -A model_to_demo=(
     ["qwen1.5"]="Qwen"
     ["minicpm"]="MiniCPM"
     ["phi-3"]="Phi-3"
+    ["openclip"]="OpenClip"
 )
 
 # Process Args

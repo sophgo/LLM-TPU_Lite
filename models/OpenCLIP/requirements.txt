@@ -1,3 +1,4 @@
+pybind11
 numpy
 transformers
 pillow
