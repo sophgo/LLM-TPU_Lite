@@ -4,7 +4,6 @@ set -ex
 models=
 mode="int4"
 folder="tmp"
-mode_args=""
 quantize_args=""
 name="minicpm-2b"
 num_layers=

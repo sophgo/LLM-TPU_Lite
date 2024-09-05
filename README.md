@@ -13,6 +13,7 @@
 |Llama2-7B            |:white\_check\_mark:|[LINK](https://huggingface.co/meta-llama/Llama-2-7b-chat-hf)              |
 |MiniCPM-2B           |:white\_check\_mark:|[LINK](https://huggingface.co/openbmb/MiniCPM-2B-sft-bf16)                |
 |Phi-3-3.8B           |:white\_check\_mark:|[LINK](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct)           |
+|Gemma2-2B            |:white\_check\_mark:|[LINK](https://huggingface.co/google/gemma-2-2b-it)                       |
 |OpenClip             |:white\_check\_mark:|[LINK](https://huggingface.co/openai/clip-vit-base-patch32)               |
 
 
@@ -51,6 +52,7 @@ git clone https://github.com/sophgo/LLM-TPU_lite.git
 | Qwen1.5-1.8B    | ./run.sh --model qwen1.5                    |
 | MiniCPM-2B      | ./run.sh --model minicpm                    |
 | Phi-3-3.8B      | ./run.sh --model phi-3                      |
+| Gemma2-2B       | ./run.sh --model gemma2                     |
 | OpenClip        | ./run.sh --model openclip                   |
 
 
