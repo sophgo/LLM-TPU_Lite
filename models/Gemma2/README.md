@@ -28,7 +28,7 @@ git clone git@hf.co:google/gemma-2-2b-it
 
 因为其依赖较新的torch，需要更新torch如下：
 ``` shell
-pip install --upgrade torch torchvision torchaudio
+pip3 install --upgrade torch torchvision torchaudio
 ```
 
 另外需要做一些模型源码上的修改：
