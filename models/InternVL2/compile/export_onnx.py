@@ -11,9 +11,6 @@
 import os
 import torch
 import argparse
-import warnings
-import numpy as np
-from torch import nn
 from tqdm import tqdm
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import torchvision.transforms as T
@@ -30,7 +27,7 @@ args = parser.parse_args()
 
 model_path = args.model_path
 is_4B = "InternVL2-4B" in model_path
-folder = f"./tmp/onnx"
+folder = "./tmp/onnx_4b" if is_4B else "./tmp/onnx_2b"
 
 origin_model = AutoModelForCausalLM.from_pretrained(
     model_path, trust_remote_code=True,
@@ -94,13 +91,11 @@ class Block(torch.nn.Module):
 
 
     def forward(self, hidden_states, position_ids, attention_mask):
-        cos_pos = self.cos[position_ids]
-        sin_pos = self.sin[position_ids]
         hidden_states, past_kv = self.layer(hidden_states,
                                             attention_mask,
                                             position_ids,
                                             use_cache=True,
-                                            rotary_pos_emb_list=(cos_pos, sin_pos),
+                                            rotary_pos_emb_list=(self.cos, self.sin),
                                             )
         present_k, present_v = past_kv
         return hidden_states.float(), present_k.float(), present_v.float()
@@ -128,14 +123,12 @@ class BlockCache(torch.nn.Module):
 
     def forward(self, hidden_states, position_ids, attention_mask, past_k,
                 past_v):
-        cos_pos = self.cos[position_ids]
-        sin_pos = self.sin[position_ids]
         hidden_states, past_kv = self.layer(hidden_states,
                                             attention_mask,
                                             position_ids=position_ids,
                                             past_key_value=(past_k, past_v),
                                             use_cache=True,
-                                            rotary_pos_emb_list=(cos_pos, sin_pos),
+                                            rotary_pos_emb_list=(self.cos, self.sin),
                                             )
         present_k, present_v = past_kv
         return hidden_states.float(), present_k.float(), present_v.float()

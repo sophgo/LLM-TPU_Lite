@@ -7,21 +7,21 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <iostream>
-#include <cstdlib>
-#include <vector>
+#include "bmruntime_interface.h"
+#include "memory.h"
+#include <algorithm>
 #include <assert.h>
 #include <chrono>
-#include <algorithm>
+#include <cstdlib>
+#include <getopt.h>
+#include <inttypes.h>
+#include <iostream>
+#include <numeric>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-#include "memory.h"
-#include "bmruntime_interface.h"
-#include <getopt.h>
-#include <stdio.h>
-#include <inttypes.h>
 #include <random>
-#include <numeric>
+#include <stdio.h>
+#include <vector>
 
 static const uint16_t ATTENTION_MASK = 0xC61C; // -9984 by bfloat16
 
@@ -48,7 +48,6 @@ public:
   uint64_t IMAGE_BYTES;
 
 private:
-  std::vector<bm_handle_t> handles;
   bm_handle_t bm_handle;
   void *p_bmrt;
   std::vector<const bm_net_info_t *> net_blocks;
@@ -57,7 +56,6 @@ private:
   const bm_net_info_t *net_embed_cache;
   const bm_net_info_t *net_lm;
   const bm_net_info_t *net_vit;
-
   std::vector<bm_device_mem_t> past_key;
   std::vector<bm_device_mem_t> past_value;
 };
@@ -80,7 +78,8 @@ void InternVL2::net_launch(const bm_net_info_t *net, int stage_idx) {
                                    net->input_num, out_tensors.data(),
                                    net->output_num, true, false);
   assert(ret);
-  bm_thread_sync(bm_handle);
+  auto status = bm_thread_sync(bm_handle);
+  assert(BM_SUCCESS == status);
 }
 
 void InternVL2::d2d(bm_device_mem_t &dst, bm_device_mem_t &src) {
@@ -97,7 +96,7 @@ void InternVL2::init(int dev_id, std::string model_path) {
   // create bmruntime
   p_bmrt = bmrt_create(bm_handle);
   assert(NULL != p_bmrt);
-
+  bmrt_set_flags(p_bmrt, BM_RUNTIME_SHARE_MEM);
   // load bmodel by file
   printf("Model[%s] loading ....\n", model_path.c_str());
   bool ret = bmrt_load_bmodel(p_bmrt, model_path.c_str());
@@ -134,9 +133,7 @@ void InternVL2::init(int dev_id, std::string model_path) {
 
 void InternVL2::deinit() {
   bmrt_destroy(p_bmrt);
-  for (auto h : handles) {
-    bm_dev_free(h);
-  }
+  bm_dev_free(bm_handle);
 }
 
 int InternVL2::forward_first(std::vector<int> &tokens,
