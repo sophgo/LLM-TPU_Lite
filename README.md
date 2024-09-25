@@ -15,7 +15,8 @@
 |Phi-3-3.8B           |:white\_check\_mark:|[LINK](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct)           |
 |Gemma2-2B            |:white\_check\_mark:|[LINK](https://huggingface.co/google/gemma-2-2b-it)                       |
 |OpenClip             |:white\_check\_mark:|[LINK](https://huggingface.co/openai/clip-vit-base-patch32)               |
-
+|InternVL2-4B         |:white\_check\_mark:|[LINK](https://huggingface.co/OpenGVLab/InternVL2-4B)                    |
+|InternVL2-2B         |:white\_check\_mark:|[LINK](https://huggingface.co/OpenGVLab/InternVL2-2B)                    |
 
 如果您想要知道转换细节和源码，可以到本项目[models](./models)子目录查看各类模型部署细节。
 
@@ -54,6 +55,7 @@ git clone https://github.com/sophgo/LLM-TPU_lite.git
 | Phi-3-3.8B      | ./run.sh --model phi-3                      |
 | Gemma2-2B       | ./run.sh --model gemma2                     |
 | OpenClip        | ./run.sh --model openclip                   |
+| InternVL2-2B    | ./run.sh --model internvl2                  |
 
 
 

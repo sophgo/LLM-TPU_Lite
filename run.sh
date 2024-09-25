@@ -32,6 +32,7 @@ declare -A model_to_demo=(
     ["phi-3"]="Phi-3"
     ["gemma2"]="Gemma2"
     ["openclip"]="OpenClip"
+    ["internvl2"]="InternVL2"
 )
 
 # Process Args

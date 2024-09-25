@@ -56,6 +56,7 @@ private:
   const bm_net_info_t *net_embed_cache;
   const bm_net_info_t *net_lm;
   const bm_net_info_t *net_vit;
+  bm_device_mem_t dev_buffer;
   std::vector<bm_device_mem_t> past_key;
   std::vector<bm_device_mem_t> past_value;
 };
@@ -129,9 +130,13 @@ void InternVL2::init(int dev_id, std::string model_path) {
     past_key[i] = net_blocks_cache[i]->stages[0].input_mems[3];
     past_value[i] = net_blocks_cache[i]->stages[0].input_mems[4];
   }
+  auto buffer_size = bm_mem_get_device_size(net_embed->stages[0].output_mems[0]);
+  status = bm_malloc_device_byte(bm_handle, &dev_buffer, buffer_size);
+  assert(BM_SUCCESS == status);
 }
 
 void InternVL2::deinit() {
+  bm_free_device(bm_handle, dev_buffer);
   bmrt_destroy(p_bmrt);
   bm_dev_free(bm_handle);
 }
@@ -156,19 +161,19 @@ int InternVL2::forward_first(std::vector<int> &tokens,
     }
   }
 
-  // forward embeding
   auto &in_mem = net_embed->stages[0].input_mems[0];
   auto &out_mem = net_embed->stages[0].output_mems[0];
+  // forward embeding
   bm_memcpy_s2d(bm_handle, in_mem, (void *)input_ids.data());
-  net_launch(net_embed); // prefil embedding
-
+  net_launch(net_embed);
   if (pixel_values.size() * sizeof(float) == IMAGE_BYTES && img_offset > 0) {
+    d2d(dev_buffer, out_mem);
+    out_mem = dev_buffer;
     // forward vision transformer
     auto &vit_in_mem = net_vit->stages[0].input_mems[0];
     auto &vit_out_mem = net_vit->stages[0].output_mems[0];
     bm_memcpy_s2d(bm_handle, vit_in_mem, (void *)pixel_values.data());
     net_launch(net_vit);
-
     // concatenante texting embedding and image embedding
     int dst_offset = img_offset * HIDDEN_SIZE * 2;
     int vit_size = bm_mem_get_device_size(vit_out_mem);

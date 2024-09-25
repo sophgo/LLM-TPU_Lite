@@ -1,6 +1,6 @@
 # InternVL2
 
-本工程实现BM1688部署多模态大模型[InternVL2-4B](https://huggingface.co/OpenGVLab/InternVL2-4B)。通过[TPU-MLIR](https://github.com/sophgo/tpu-mlir)编译器将模型转换成bmodel，并采用c++代码将其部署到BM1684X的PCIE环境，或者SoC环境。
+本工程实现BM1688部署多模态大模型[InternVL2-4B](https://huggingface.co/OpenGVLab/InternVL2-4B)。通过[TPU-MLIR](https://github.com/sophgo/tpu-mlir)编译器将模型转换成bmodel，并采用c++代码将其部署到BM1688的PCIE环境，或者SoC环境。
 
 ## 开发环境准备
 
@@ -31,7 +31,10 @@ python3 export_onnx.py --model_path your_internvl2_path
 此处介绍如何将onnx模型编译成bmodel。也可以省去编译模型这一步，直接下载编译好的模型：
 
 ``` shell
+# 4B bmodel
 python3 -m dfss --url=open@sophgo.com:/ext_model_information/LLM/LLM-TPU_Lite/internvl2-4b_bm1688_int4_2core.bmodel
+# 2B bmodel
+python3 -m dfss --url=open@sophgo.com:/ext_model_information/LLM/LLM-TPU_Lite/internvl2-2b_bm1688_int4_2core.bmodel
 ```
 
 #### 1. 下载docker，启动容器
@@ -94,7 +97,7 @@ cd build && cmake .. && make && cp *cpython* .. && cd ..
 * python demo
 
 ```
-python3 pipeline.py --model_path internvl2-4b_bm1688_int4_2core.bmodel --tokenizer ../support/token_config_4b --devid 0
+python3 pipeline.py --model_path internvl2-4b_bm1688_int4_2core.bmodel --tokenizer ../support/token_config_4b
 ```
 model为实际的model储存路径；tokenizer_path为实际的tokenizer配置的储存路径
 
@@ -110,4 +113,4 @@ model为实际的model储存路径；tokenizer_path为实际的tokenizer配置�
 1. 将`files/InternVL2-2B`里面的文件替换到`InternVL2-2B`中；
 2. 执行`export_onnx.py`指定`InternVL2-2B`路径，导出onnx；
 3. 执行`./compile.sh --name internvl2-2b --num_core 2`生成模型`internvl2-2b_bm1688_int4_2core.bmodel`
-4. 运行程序是一致的，但是需要指定`token_config_2b`，执行命令：`python3 pipeline.py --model_path internvl2-2b_bm1688_int4_2core.bmodel --tokenizer ../support/token_config_2b --devid 0`
+4. 运行程序是一致的，但是需要指定`token_config_2b`，执行命令：`python3 pipeline.py --model_path internvl2-2b_bm1688_int4_2core.bmodel --tokenizer ../support/token_config_2b`

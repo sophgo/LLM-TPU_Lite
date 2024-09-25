@@ -131,7 +131,6 @@ model_deploy.py \
     --quant_output \
     --chip ${chip} \
     --num_core $num_core \
-    --addr_mode io_alone \
     --model embedding.bmodel
 
 model_transform.py \
@@ -147,7 +146,6 @@ model_deploy.py \
     --quant_output \
     --chip ${chip} \
     --num_core $num_core \
-    --addr_mode io_alone \
     --model embedding_cache.bmodel
 
 rm *.npz -f
