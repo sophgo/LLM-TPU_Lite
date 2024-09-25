@@ -33,6 +33,7 @@ declare -A model_to_demo=(
     ["gemma2"]="Gemma2"
     ["openclip"]="OpenClip"
     ["internvl2"]="InternVL2"
+    ["minicpmv2_6"]="MiniCPM-V-2_6"
 )
 
 # Process Args

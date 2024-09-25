@@ -17,6 +17,7 @@
 |OpenClip             |:white\_check\_mark:|[LINK](https://huggingface.co/openai/clip-vit-base-patch32)               |
 |InternVL2-4B         |:white\_check\_mark:|[LINK](https://huggingface.co/OpenGVLab/InternVL2-4B)                    |
 |InternVL2-2B         |:white\_check\_mark:|[LINK](https://huggingface.co/OpenGVLab/InternVL2-2B)                    |
+|MiniCPM-V-2_6        |:white\_check\_mark:|[LINK](https://huggingface.co/openbmb/MiniCPM-V-2_6)                     |
 
 如果您想要知道转换细节和源码，可以到本项目[models](./models)子目录查看各类模型部署细节。
 
@@ -56,6 +57,7 @@ git clone https://github.com/sophgo/LLM-TPU_lite.git
 | Gemma2-2B       | ./run.sh --model gemma2                     |
 | OpenClip        | ./run.sh --model openclip                   |
 | InternVL2-2B    | ./run.sh --model internvl2                  |
+| MiniCPM-V-2_6   | ./run.sh --model minicpmv2_6                |
 
 
 
