@@ -1,5 +1,4 @@
 import time
-import torch
 import argparse
 from PIL import Image
 import torchvision.transforms as T
@@ -36,7 +35,7 @@ class InternVL2():
         self.tokenizer.decode([0])  # warm up
 
         # preprocess parameters, such as prompt & tokenizer
-        self.system_prompt = '<|system|>\n你是由上海人工智能实验室联合商汤科技开发的书生多模态大模型，英文名叫InternVL, 是一个有用无害的人工智能助手。<|end|><|user|>\n'
+        self.system_prompt = '<|im_start|>system\n你是由上海人工智能实验室联合商汤科技开发的书生多模态大模型，英文名叫InternVL, 是一个有用无害的人工智能助手。<|im_end|><|im_start|>user\n'
         image_ids = [0] * 256
         system_ids = self.tokenizer.encode(self.system_prompt + "<img>")
         self.system_offset = len(system_ids)
@@ -48,7 +47,6 @@ class InternVL2():
         self.SEQLEN = self.model.SEQLEN
         self.ID_EOS = self.tokenizer.eos_token_id
         self.ID_IM_END = self.tokenizer.convert_tokens_to_ids("<|im_end|>")
-        self.ID_END = self.tokenizer.convert_tokens_to_ids("<|end|>")
 
     def load_image(self, image_file):
         image = Image.open(image_file).convert('RGB')
@@ -57,7 +55,7 @@ class InternVL2():
 
     def encode(self):
         if not self.image_str:
-            prompt = self.system_prompt + self.input_str + "<|end|><|assistant|>\n"
+            prompt = self.system_prompt + self.input_str + "<|im_end|><|im_start|>assistant\n"
             self.input_ids = self.tokenizer.encode(prompt)
             self.image_offset = 0
             self.pixel_values = []
@@ -65,7 +63,7 @@ class InternVL2():
         self.pixel_values = self.load_image(self.image_str).flatten().tolist()
         self.image_offset = self.system_offset
         prompt_ids = self.tokenizer.encode(
-            "</img>{}<|end|><|assistant|>\n".format(self.input_str))
+            "</img>{}<|im_end|><|im_start|>assistant\n".format(self.input_str))
         self.input_ids = self.system_prefix + prompt_ids
 
     def chat(self):
@@ -99,7 +97,8 @@ class InternVL2():
             tok_num = 1
             # Following tokens
             full_word_tokens = []
-            while token not in [self.ID_EOS, self.ID_END, self.ID_IM_END
+            text = ""
+            while token not in [self.ID_EOS, self.ID_IM_END
                                 ] and self.model.token_length < self.SEQLEN:
                 full_word_tokens.append(token)
                 word = self.tokenizer.decode(full_word_tokens,
@@ -110,10 +109,11 @@ class InternVL2():
                         word = self.tokenizer.decode(
                             [token, token],
                             skip_special_tokens=True)[len(pre_word):]
+                    text += word
                     print(word, flush=True, end="")
                     full_word_tokens = []
-                tok_num += 1
                 token = self.model.forward_next()
+                tok_num += 1
             next_end = time.time()
             first_duration = first_end - first_start
             next_duration = next_end - first_end
