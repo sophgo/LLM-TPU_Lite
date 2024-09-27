@@ -82,7 +82,7 @@ source ./envsetup.sh  #激活环境变量
 > （python_demo运行之前都需要执行这个）
 ```
 sudo apt-get update
-sudo apt-get install pybind11-dev
+sudo apt-get install pybind11
 pip3 install transformers_stream_generator einops tiktoken accelerate transformers==4.37.2
 ```
 
@@ -99,7 +99,7 @@ cd build && cmake .. && make && cp *cpython* .. && cd ..
 ```
 python3 pipeline.py --model_path internvl2-4b_bm1688_int4_2core.bmodel --tokenizer ../support/token_config_4b
 ```
-model为实际的model储存路径；tokenizer_path为实际的tokenizer配置的储存路径
+model_path为实际的model储存路径；tokenizer为实际的tokenizer配置的储存路径
 
 * 运行效果
 
