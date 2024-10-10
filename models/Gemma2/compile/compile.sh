@@ -129,7 +129,7 @@ for ((i=0; i<$num_layers; i++)); do
         --addr_mode io_alone \
         --model block_cache_$i.bmodel
 
-    rm *.npz -f
+    rm *.npz *.onnx -f
 
     models=${models}${outdir}'/block_'$i'.bmodel '$outdir'/block_cache_'$i'.bmodel '
 
@@ -173,7 +173,7 @@ model_deploy.py \
     --num_core $num_core \
     --model embedding_cache.bmodel
 
-rm *.npz -f
+rm *.npz *.onnx -f
 
 models=$models' '$outdir'/embedding.bmodel '$outdir'/embedding_cache.bmodel '
 
@@ -200,7 +200,7 @@ model_deploy.py \
     --num_core $num_core \
     --model lm_head.bmodel
 
-rm *.npz -f
+rm *.npz *.onnx -f
 
 models=${models}${outdir}'/lm_head.bmodel '
 popd

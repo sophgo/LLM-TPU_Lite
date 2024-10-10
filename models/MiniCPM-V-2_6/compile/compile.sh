@@ -59,6 +59,32 @@ mkdir -p $outdir
 pushd $outdir
 
 for ((i = 0; i < $num_layers; i++)); do
+    model_transform.py \
+        --model_name block_$i \
+        --model_def ${onnx_dir}/block_$i.onnx \
+        --mlir block_$i.mlir
+
+    model_deploy.py \
+        --mlir block_$i.mlir \
+        $quantize_args \
+        --quant_input \
+        --quant_output \
+        --chip ${chip} \
+        --model block_$i.bmodel
+
+    model_transform.py \
+        --model_name block_cache_$i \
+        --model_def ${onnx_dir}/block_cache_$i.onnx \
+        --mlir block_cache_$i.mlir
+
+    model_deploy.py \
+        --mlir block_cache_$i.mlir \
+        $quantize_args \
+        --quant_input \
+        --quant_output \
+        --chip ${chip} \
+        --addr_mode io_alone \
+        --model block_cache_$i.bmodel
 
     rm *.npz *.onnx -f
 
@@ -73,6 +99,32 @@ outdir=${folder}/embedding
 mkdir -p $outdir
 pushd $outdir
 
+model_transform.py \
+    --model_name embedding \
+    --model_def ${onnx_dir}/embedding.onnx \
+    --mlir embedding.mlir
+
+model_deploy.py \
+    --mlir embedding.mlir \
+    --quantize BF16 \
+    --quant_input \
+    --quant_output \
+    --chip ${chip} \
+    --model embedding.bmodel
+
+model_transform.py \
+    --model_name embedding_cache \
+    --model_def ${onnx_dir}/embedding.onnx \
+    --input_shapes [[1,1]] \
+    --mlir embedding_cache.mlir
+
+model_deploy.py \
+    --mlir embedding_cache.mlir \
+    --quantize BF16 \
+    --quant_input \
+    --quant_output \
+    --chip ${chip} \
+    --model embedding_cache.bmodel
 
 rm *.npz *.onnx -f
 

@@ -70,7 +70,7 @@ model_deploy.py \
     # --test_input OpenClip_in_f32.npz \
     # --test_reference ../../output_top.npz
 
-rm *.npz
+rm *.npz *.onnx -f
 
 popd
 
