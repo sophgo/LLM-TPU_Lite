@@ -18,7 +18,7 @@ fi
 
 
 # run demo
-cd python_demo && mkdir build && cd build
+cd python_demo && mkdir -p build && cd build
 cmake .. -DCMAKE_PREFIX_PATH=~/.local/lib/python3.8/site-packages/pybind11 && make
 cp *.so ../ && cd ..
-python3 ./python_demo/chat.py --model ../../bmodels/${model} --tokenizer ../support/token_config
+python3 chat.py --model ../../../bmodels/${model} --tokenizer ../support/token_config

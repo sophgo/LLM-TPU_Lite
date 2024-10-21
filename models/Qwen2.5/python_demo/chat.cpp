@@ -102,7 +102,7 @@ void Qwen::init(const std::vector<int> &devices, int eos_token_id, std::string m
 
   // set NUM_LAYERS
   auto num_nets = bmrt_get_network_number(p_bmrt);
-  NUM_LAYERS = (num_nets - 2) / 2;
+  NUM_LAYERS = (num_nets - 3) / 2;
 
   // net names
   name_embed = "embedding";
