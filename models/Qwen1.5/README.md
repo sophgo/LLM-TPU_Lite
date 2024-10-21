@@ -98,6 +98,8 @@ pip3 install pybind11 transformers
 mkdir build
 cd build
 cmake .. -DCMAKE_PREFIX_PATH=~/.local/lib/python3.8/site-packages/pybind11
+make
+cp *.so ../
 cd ..
-python3 chat.py --model_path /data/llm/qwen1.5-1.8b_bm1688_int4_2core.bmodel --tokenizer_path ../support/token_config/
+python3 chat.py --model_path qwen1.5-1.8b_bm1688_int4_2core.bmodel --tokenizer_path ../support/token_config/
 ```

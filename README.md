@@ -10,14 +10,15 @@
 |:-                   |:-                  |:-                                                                        |
 |ChatGLM3-6B          |:white\_check\_mark:|[LINK](https://huggingface.co/THUDM/chatglm3-6b)                          |
 |Qwen1.5-1.8B         |:white\_check\_mark:|[LINK](https://huggingface.co/Qwen/Qwen1.5-1.8B-Chat)                     |
+|Qwen2.5-1.5B         |:white\_check\_mark:|[LINK](https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct)                 |
 |Llama2-7B            |:white\_check\_mark:|[LINK](https://huggingface.co/meta-llama/Llama-2-7b-chat-hf)              |
 |MiniCPM-2B           |:white\_check\_mark:|[LINK](https://huggingface.co/openbmb/MiniCPM-2B-sft-bf16)                |
 |Phi-3-3.8B           |:white\_check\_mark:|[LINK](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct)           |
 |Gemma2-2B            |:white\_check\_mark:|[LINK](https://huggingface.co/google/gemma-2-2b-it)                       |
 |OpenClip             |:white\_check\_mark:|[LINK](https://huggingface.co/openai/clip-vit-base-patch32)               |
-|InternVL2-4B         |:white\_check\_mark:|[LINK](https://huggingface.co/OpenGVLab/InternVL2-4B)                    |
-|InternVL2-2B         |:white\_check\_mark:|[LINK](https://huggingface.co/OpenGVLab/InternVL2-2B)                    |
-|MiniCPM-V-2_6        |:white\_check\_mark:|[LINK](https://huggingface.co/openbmb/MiniCPM-V-2_6)                     |
+|InternVL2-4B         |:white\_check\_mark:|[LINK](https://huggingface.co/OpenGVLab/InternVL2-4B)                     |
+|InternVL2-2B         |:white\_check\_mark:|[LINK](https://huggingface.co/OpenGVLab/InternVL2-2B)                     |
+|MiniCPM-V-2_6        |:white\_check\_mark:|[LINK](https://huggingface.co/openbmb/MiniCPM-V-2_6)                      |
 
 如果您想要知道转换细节和源码，可以到本项目[models](./models)子目录查看各类模型部署细节。
 
@@ -52,6 +53,7 @@ git clone https://github.com/sophgo/LLM-TPU_Lite.git
 | ChatGLM3-6B     | ./run.sh --model chatglm3                   |
 | Llama2-7B       | ./run.sh --model llama2                     |
 | Qwen1.5-1.8B    | ./run.sh --model qwen1.5                    |
+| Qwen2.5-1.5B    | ./run.sh --model qwen2.5                    |
 | MiniCPM-2B      | ./run.sh --model minicpm                    |
 | Phi-3-3.8B      | ./run.sh --model phi-3                      |
 | Gemma2-2B       | ./run.sh --model gemma2                     |

@@ -28,6 +28,7 @@ declare -A model_to_demo=(
     ["chatglm3"]="ChatGLM3"
     ["llama2"]="Llama2"
     ["qwen1.5"]="Qwen1.5"
+    ["qwen2.5"]="Qwen2.5"
     ["minicpm"]="MiniCPM"
     ["phi-3"]="Phi-3"
     ["gemma2"]="Gemma2"
