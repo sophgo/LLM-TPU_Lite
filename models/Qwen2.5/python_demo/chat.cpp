@@ -35,6 +35,11 @@ public:
   int forward_next_with_topk(int cur_token, std::string mode = "sample");
   std::vector<int> answer(std::vector<int> history_tokens);
 
+  int EOS;
+  int device_num;
+  int NUM_LAYERS;
+  int token_length;
+  int SEQLEN;
   std::mt19937 gen;
   Qwen() : gen(std::random_device()()) {};
   int sample(const std::vector<float>& probs, const std::vector<int>& tokens);
@@ -59,12 +64,6 @@ private:
   std::string name_lm;
   std::vector<std::string> name_blocks;
   std::vector<std::string> name_blocks_cache;
-
-  int EOS;
-  int device_num;
-  int token_length;
-  int SEQLEN;
-  int NUM_LAYERS;
 };
 
 void Qwen::init(const std::vector<int> &devices, int eos_token_id, std::string model_path) {
@@ -656,6 +655,7 @@ PYBIND11_MODULE(chat, m) {
     pybind11::class_<Qwen>(m, "Qwen")
         .def(pybind11::init<>())
         .def("init", &Qwen::init)
+        .def_readwrite("SEQLEN", &Qwen::SEQLEN) // read SEQLEN in pipeline.py
         .def("forward_first", &Qwen::forward_first)
         .def("forward_next", &Qwen::forward_next)
         .def("forward_first_with_topk", &Qwen::forward_first_with_topk)

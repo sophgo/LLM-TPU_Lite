@@ -9,12 +9,10 @@ class Engine:
         # preprocess parameters, such as prompt & tokenizer
         self.input_str = ""
         self.system_prompt = "You are a helpful assistant."
-        self.history = []
         self.messages = [{"role": "system", "content": self.system_prompt}]
 
         # model parameters
         self.token_length = 0
-        self.SEQLEN = 512
 
         # postprocess parameters
         self.mode = "greedy"
@@ -63,8 +61,8 @@ class Engine:
         if not tokens:
             print("Sorry: your question is too wierd!!")
             return
-        if self.token_length > self.SEQLEN:
-            print("The maximum question length should be shorter than {} but we get {} instead.".format(self.SEQLEN, self.token_length))
+        if self.token_length > self.model.SEQLEN:
+            print("The maximum question length should be shorter than {} but we get {} instead.".format(self.model.SEQLEN, self.token_length))
             return
 
         # First token
@@ -73,14 +71,21 @@ class Engine:
         first_end = time.time()
 
         # Following tokens
-        while token != self.EOS and self.token_length < self.SEQLEN:
-            diff = self.sp.decode([token])
+        full_word_tokens = []
+        while token != self.EOS and self.token_length < self.model.SEQLEN:
+            full_word_tokens.append(token)
+            diff = self.sp.decode(full_word_tokens, skip_special_tokens=True)
+            if "�" in diff:
+                token = self.forward_next(token)
+                tok_num += 1
+                continue
             self.answer_cur += diff
             print(diff, flush=True, end='')
-            if self.token_length < self.SEQLEN:
+            if self.token_length < self.model.SEQLEN:
                 self.token_length += 1
-            tok_num += 1
             token = self.forward_next(token)
+            tok_num += 1
+            full_word_tokens = []
 
         # counting time
         next_end = time.time()
@@ -88,10 +93,9 @@ class Engine:
         next_duration = next_end - first_end
         tps = tok_num / next_duration
 
-        if self.token_length >= self.SEQLEN - 128:
+        if self.token_length >= self.model.SEQLEN:
             print("... (reach the maximal length)", flush=True, end='')
-            self.history.clear()
-            self.messages = self.messages[0]
+            self.messages = [{"role": "system", "content": self.system_prompt}]
             self.messages.append({"role": "user", "content": self.input_str})
             self.messages.append({"role": "assistant", "content": self.answer_cur})
         else:
