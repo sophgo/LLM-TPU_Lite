@@ -356,7 +356,7 @@ def test_net_with_mask():
 # create folder to store onnx
 if not os.path.exists(folder):
     os.makedirs(folder)
-'''
+
 # export models
 print('Convert block & block_cache')
 for i in tqdm(range(NUM_LAYERS)):
@@ -365,7 +365,7 @@ for i in tqdm(range(NUM_LAYERS)):
 
 print('Convert embedding')
 convert_embedding()
-'''
+
 print('Convert lm_head')
 if args.lmhead_with_topk:
     convert_lm_head_with_topk()
