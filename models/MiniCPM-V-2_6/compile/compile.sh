@@ -43,7 +43,7 @@ if [ x$mode == x"int8" ]; then
 elif [ x$mode == x"bf16" ]; then
     quantize_args="--quantize BF16"
 elif [ x$mode == x"int4" ]; then
-    quantize_args="--quantize W4BF16 --q_group_size 64"
+    quantize_args="--quantize W4BF16 --q_group_size 32"
 else
     echo "Error, unknown quantize mode"
     exit 1
@@ -70,6 +70,7 @@ for ((i = 0; i < $num_layers; i++)); do
         --quant_input \
         --quant_output \
         --chip ${chip} \
+        --num_core $num_core \
         --model block_$i.bmodel
 
     model_transform.py \
@@ -83,6 +84,7 @@ for ((i = 0; i < $num_layers; i++)); do
         --quant_input \
         --quant_output \
         --chip ${chip} \
+        --num_core $num_core \
         --addr_mode io_alone \
         --model block_cache_$i.bmodel
 
