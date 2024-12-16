@@ -31,6 +31,7 @@
 
 ## 注意点
 * 模型编译必须要在docker内完成，无法在docker外操作
+* 建议阶段一在x86服务器上编译模型，再拷贝至soc服务器上运行阶段二
 
 ### 步骤一：模型下载
 可以通过[huggingface](https://huggingface.co/allenai/Molmo-7B-D-0924)或[ModelScope](https://modelscope.cn/models/LLM-Research/Molmo-7B-D-0924/)官方下载

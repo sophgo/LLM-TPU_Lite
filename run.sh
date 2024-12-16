@@ -35,6 +35,7 @@ declare -A model_to_demo=(
     ["openclip"]="OpenCLIP"
     ["internvl2"]="InternVL2"
     ["minicpmv2_6"]="MiniCPM-V-2_6"
+    ["molmo-7b"]="Molmo"
 )
 
 # Function to validate model name

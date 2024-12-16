@@ -4,3 +4,5 @@ deploy/
 *.bmodel
 .vscode
 *.npz
+__pycache__
+*.so
