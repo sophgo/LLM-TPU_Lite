@@ -23,8 +23,6 @@
 ```
 ----------------------------
 
-#  自动化推理脚本
-
 
 
 # 【阶段一】模型编译
@@ -95,6 +93,11 @@ python export_onnx.py -m $your_model_path -s 1024 -i 384
 ----------------------------
 
 # 【阶段二】可执行文件生成
+
+## 配置运行环境(Python Demo版本)
+```shell
+pip install -r requirements.txt
+```
 
 ## 编译程序(Python Demo版本)
 执行如下编译，(PCIE版本与SoC版本相同)：

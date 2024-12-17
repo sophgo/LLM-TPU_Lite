@@ -1,3 +1,5 @@
-torch==2.2.0
+torch
+torchvision
+pillow
 einops
 transformers==4.43.3

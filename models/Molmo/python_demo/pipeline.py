@@ -1,5 +1,4 @@
 import argparse
-
 import time
 import torch
 from PIL import Image
@@ -30,13 +29,6 @@ class Molmo():
         import chat
         self.model = chat.Molmo()
         self.model.init(self.devices, args.model_path)
-        self.model.temperature = args.temperature
-        self.model.top_p = args.top_p
-        self.model.repeat_penalty = args.repeat_penalty
-        self.model.repeat_last_n = args.repeat_last_n
-        self.model.max_new_tokens = args.max_new_tokens
-        self.model.generation_mode = args.generation_mode
-        self.model.prompt_mode = args.prompt_mode
         self.SEQLEN = self.model.SEQLEN
 
 
@@ -103,8 +95,6 @@ class Molmo():
         Stream the answer for the given inputs.
         """
         tok_num = 0
-        self.answer_cur = ""
-        self.answer_token = []
 
         # First token
         first_start = time.time()
@@ -122,10 +112,7 @@ class Molmo():
                 token = self.model.forward_next()
                 tok_num += 1
                 continue
-
-            self.answer_token += full_word_tokens
             print(word, flush=True, end="")
-
             token = self.model.forward_next()
             tok_num += 1
             full_word_tokens = []
@@ -146,18 +133,15 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-m', '--model_path', type=str, required=True, help='path to the bmodel file')
-    parser.add_argument('-t', '--processor_path', type=str, default="../processor_config", help='path to the processor file')
-    parser.add_argument('-i', '--image_path', type=str, default="./test.jpg", help='path to image')
-    parser.add_argument('-s', '--image_size', type=int, default=384, help='image size in compiling bmodel')
-    parser.add_argument('-d', '--devid', type=str, default='0', help='device ID to use')
-    parser.add_argument('--temperature', type=float, default=0.6, help='temperature scaling factor for the likelihood distribution')
-    parser.add_argument('--top_p', type=float, default=0.9, help='cumulative probability of token words to consider as a set of candidates')
-    parser.add_argument('--repeat_penalty', type=float, default=1.0, help='penalty for repeated tokens')
-    parser.add_argument('--repeat_last_n', type=int, default=32, help='repeat penalty for recent n tokens')
-    parser.add_argument('--max_new_tokens', type=int, default=50, help='max new token length to generate')
-    parser.add_argument('--generation_mode', type=str, choices=["greedy", "penalty_sample"], default="greedy", help='mode for generating next token')
-    parser.add_argument('--prompt_mode', type=str, choices=["prompted", "unprompted"], default="prompted", help='use prompt format or original input')
-    parser.add_argument('--enable_history', action='store_true', default=True, help="if set, enables storing of history memory.")
+    parser.add_argument('-m', '--model_path', type=str,
+                        required=True, help='path to the bmodel file')
+    parser.add_argument('-p', '--processor_path', type=str,
+                        default="../support/processor_config", help='path to the tokenizer file')
+    parser.add_argument('-d', '--devid', type=str,
+                        default='0', help='device ID to use')
+    parser.add_argument('-i', '--image_path', type=str,
+                        default="./test.jpg", help='path to image')
+    parser.add_argument('-s', '--image_size', type=int,
+                        default=384, help='image size in compiling bmodel')
     args = parser.parse_args()
     main(args)
