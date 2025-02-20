@@ -6,7 +6,7 @@ if [ ! -d "../../bmodels" ]; then
   mkdir ../../bmodels
 fi
 
-model=qwen1.5-1.8b_bm1688_int4_2core.bmodel
+model=qwen1.5-1.8b_bm1688_int4_2core_2048.bmodel
 
 if [ ! -f "../../bmodels/${model}" ]; then
   pip3 install dfss

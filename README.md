@@ -10,8 +10,8 @@
 |:-                   |:-                  |:-                                                                        |
 |ChatGLM3-6B          |:white\_check\_mark:|[LINK](https://huggingface.co/THUDM/chatglm3-6b)                          |
 |Qwen1.5-1.8B         |:white\_check\_mark:|[LINK](https://huggingface.co/Qwen/Qwen1.5-1.8B-Chat)                     |
-|Qwen2-1.5B           |:white\_check\_mark:|[LINK](https://huggingface.co/Qwen/Qwen2-1.5B-Instruct)                 |
-|Qwen2-7B             |:white\_check\_mark:|[LINK](https://huggingface.co/Qwen/Qwen2-7B-Instruct)                 |
+|Qwen2-1.5B           |:white\_check\_mark:|[LINK](https://huggingface.co/Qwen/Qwen2-1.5B-Instruct)                   |
+|Qwen2-7B             |:white\_check\_mark:|[LINK](https://huggingface.co/Qwen/Qwen2-7B-Instruct)                     |
 |Qwen2.5-1.5B         |:white\_check\_mark:|[LINK](https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct)                 |
 |Llama2-7B            |:white\_check\_mark:|[LINK](https://huggingface.co/meta-llama/Llama-2-7b-chat-hf)              |
 |MiniCPM-2B           |:white\_check\_mark:|[LINK](https://huggingface.co/openbmb/MiniCPM-2B-sft-bf16)                |
