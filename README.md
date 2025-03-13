@@ -22,6 +22,7 @@
 |InternVL2-2B         |:white\_check\_mark:|[LINK](https://huggingface.co/OpenGVLab/InternVL2-2B)                     |
 |MiniCPM-V-2_6        |:white\_check\_mark:|[LINK](https://huggingface.co/openbmb/MiniCPM-V-2_6)                      |
 |Molmo-7B-D-0924      |:white\_check\_mark:|[LINK](https://huggingface.co/allenai/Molmo-7B-D-0924)                    |
+|Qwen2.5-VL-3B        |:white\_check\_mark:|[LINK](https://huggingface.co/Qwen/Qwen2.5-VL-3B-Instruct)                |
 
 如果您想要知道转换细节和源码，可以到本项目[models](./models)子目录查看各类模型部署细节。
 
