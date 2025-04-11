@@ -6,10 +6,12 @@
 本文包括如何转换bmodel，和如何在BM1688环境运行bmodel。如何转换bmodel环节可以省去，直接用以下链接下载：
 
 ``` shell
-# 双core，2K长度
+# 双core，2K长度, 3b
 python3 -m dfss --url=open@sophgo.com:/ext_model_information/LLM/LLM-TPU_Lite/qwen2.5-vl-3b_bm1688_w4bf16_2core.bmodel
-# 单core，2K长度
+# 单core，2K长度, 3b
 python3 -m dfss --url=open@sophgo.com:/ext_model_information/LLM/LLM-TPU_Lite/qwen2.5-vl-3b_bm1688_w4bf16_1core.bmodel
+# 双core，2K长度，7b
+python3 -m dfss --url=open@sophgo.com:/ext_model_information/LLM/LLM-TPU_Lite/qwen2.5-vl-7b_bm1688_w4bf16_2core.bmodel
 ```
 
 ## 开发环境准备
