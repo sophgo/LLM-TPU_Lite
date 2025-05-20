@@ -7,10 +7,10 @@ if [ ! -d "../../bmodels" ]; then
   mkdir ../../bmodels
 fi
 
-if [ ! -f "../../bmodels/gemma-2b_int4_2core.bmodel" ]; then
+if [ ! -f "../../bmodels/gemma-2b_bm1688_int4_2core.bmodel" ]; then
   pip3 install dfss
-  python3 -m dfss --url=open@sophgo.com:/ext_model_information/LLM/LLM-TPU_Lite/gemma-2b_int4_2core.bmodel
-  mv gemma-2b_int4_2core.bmodel ../../bmodels
+  python3 -m dfss --url=open@sophgo.com:/ext_model_information/LLM/LLM-TPU_Lite/gemma-2b_bm1688_int4_2core.bmodel
+  mv gemma-2b_bm1688_int4_2core.bmodel ../../bmodels
 else
   echo "Bmodel Exists!"
 fi
@@ -24,4 +24,4 @@ else
 fi
 
 # run demo
-./demo/gemma --model ../../bmodels/gemma-2b_int4_2core.bmodel --tokenizer ./support/tokenizer.model
+./demo/gemma --model ../../bmodels/gemma-2b_bm1688_int4_2core.bmodel --tokenizer ./support/tokenizer.model

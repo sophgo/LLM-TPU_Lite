@@ -32,6 +32,7 @@ declare -A model_to_demo=(
     ["minicpm"]="MiniCPM"
     ["phi-3"]="Phi-3"
     ["gemma2"]="Gemma2"
+    ["gemma"]="Gemma"
     ["openclip"]="OpenCLIP"
     ["internvl2"]="InternVL2"
     ["minicpmv2_6"]="MiniCPM-V-2_6"
