@@ -33,7 +33,12 @@ pip install --upgrade torch torchvision torchaudio
 
 另外需要做一些模型源码上的修改：
 * 将`compile/files/gemma-2b-it`下的`config.json`替换`gemma-2b-it`中的`config.json`
-* 将`compile/files/gemma-2b-it`下的`modeling_gemma.py`替换`transformers/models/gemma/modeling_gemma.py`
+* 将`compile/files/gemma-2b-it`下的`modeling_gemma.py`替换`transformers/models/gemma/modeling_gemma.py`，类似如下:
+
+``` shell
+# 请根据实际transformers目录调整
+cp files/gemma-2b-it/modeling_gemma.py  /root/miniconda3/lib/python3.10/site-packages/transformers/models/gemma/
+```
 
 
 3. 下载`TPU-MLIR`代码并编译，(也可以直接下载编译好的release包解压)

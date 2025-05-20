@@ -11,8 +11,6 @@
 import os
 import torch
 import argparse
-import pdb
-import einops
 from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
 torch.set_grad_enabled(False)

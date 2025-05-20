@@ -1,14 +1,14 @@
 #!/bin/bash
-# ./compile.sh --chip bm1688 --mode int4 --name gemma-2b
+# ./compile.sh --chip bm1688 --name gemma-2b
 set -ex
 models=
 mode="int4"
 folder="tmp"
 quantize_args=""
 chip_args=""
-name=""
+name="gemma-2b"
 num_layers=
-chip="bm1684x"
+chip="bm1688"
 
 onnx_dir=$PWD/tmp/onnx
 
@@ -26,6 +26,10 @@ while [[ $# -gt 0 ]]; do
         ;;
     --name)
         name="$2"
+        shift 2
+        ;;
+    --num_core)
+        num_core="$2"
         shift 2
         ;;
     *)
@@ -64,14 +68,14 @@ fi
 if [ x$chip == x"bm1684x" ]; then
     chip_args="--chip bm1684x"
 elif [ x$chip == x"bm1688" ]; then
-    chip_args="--chip bm1688 --num_core 2"
+    chip_args="--chip bm1688"
 else
     echo "Error, unknown chip"
     exit 1
 fi
 
-folder='tmp/'$name'_'$chip'_'$mode
-out_model=$name'_'$chip'_'$mode'.bmodel'
+folder='tmp/'$name'_'$chip'_'$mode'_'$num_core'core'
+out_model=$name'_'$chip'_'$mode'_'$num_core'core.bmodel'
 
 
 outdir=${folder}/embedding
@@ -128,6 +132,7 @@ model_deploy.py \
     --quant_input \
     --quant_output \
     $chip_args \
+    --num_core $num_core \
     --model lm_head.bmodel
 
 rm *.npz *.onnx -f
@@ -156,6 +161,7 @@ for ((i=0; i<$num_layers; i++)); do
         --quant_input \
         --quant_output \
         $chip_args \
+        --num_core $num_core \
         --model block_$i.bmodel
 
     model_transform.py \
@@ -169,6 +175,7 @@ for ((i=0; i<$num_layers; i++)); do
         --quant_input \
         --quant_output \
         $chip_args \
+        --num_core $num_core \
         --addr_mode io_alone \
         --model block_cache_$i.bmodel
 
