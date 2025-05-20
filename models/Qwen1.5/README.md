@@ -47,45 +47,28 @@ TPU-MLIR和docker准备
   ```
 
 ## 4. 模型编译
-## 4.1 获取onnx
-### 4.1.1 下载Qwen1.5官方代码
+
+### 下载Qwen1.5官方代码
 
 **注：** Qwen1.5-1.8B官方库50G左右，在下载之前，要确认自己有huggingface官网的access token或者SSH key。
 
 ```bash
 git lfs install
-git clone https://huggingface.co/Qwen/Qwen1.5-1.8B-Chat
+git clone https://huggingface.co/Qwen/Qwen1.5-1.8B-Chat-AWQ
 ```
 如果git clone完代码之后出现卡住，可以尝试`ctrl+c`中断，然后进入仓库运行`git lfs pull`。
-
-### 4.1.2 修改官方代码：
-本例程的`tools`目录下提供了修改好之后的`config.json`和`modeling_qwen2.py`。(transformers请更新到4.38.2以上)可以直接替换掉原仓库的文件：
-
-```bash
-cp compile/files/Qwen1.5-1.8B-Chat/config.json Qwen1.5-1.8B-Chat/
-cp compile/files/Qwen1.5-1.8B-Chat/modeling_qwen2.py /usr/local/lib/python3.10/dist-packages/transformers/models/qwen2/
-```
-
-### 4.1.3 导出onnx
-- 导出所有onnx模型，如果过程中提示缺少某些组件，直接**pip install**组件即可
-
-```bash
-# 将/workspace/Qwen-7B-Chat换成docker环境中您的Qwen-7B-Chat仓库的路径
-python3 compile/export_onnx.py --model_path /workspace/Qwen1.5-1.8B-Chat
-```
-此时有大量onnx模型被导出到本例程中`compile/tmp/onnx`的目录。
 
 ### 4.2 bmodel编译
 
 ```bash
-./compile.sh --name qwen1.5-1.8b
+llm_convert.py -m /workspace/Qwen1.5-1.8B-Chat-AWQ -s 512 -q w4bf16 -c bm1688 -o qwen1.5_1.8b
 ```
 
-编译成功之后，模型将会存放在`compile`目录下。
+编译成功之后，模型将会存放在`qwen1.5_1.8b`目录下。
 
 ## 5. 模型推理
 ```bash
-python python_demo/chat.py --model_path your_bmodel_path --tokenizer_path ./token_config/
+python python_demo/pipeline.py --model_path your_bmodel_path -c token_config
 ```
 
 ## 常见问题
@@ -97,9 +80,9 @@ pip3 install pybind11 transformers
 # 进入python_demo目录
 mkdir build
 cd build
-cmake .. -DCMAKE_PREFIX_PATH=~/.local/lib/python3.8/site-packages/pybind11
+cmake ..
 make
 cp *.so ../
 cd ..
-python3 chat.py --model_path qwen1.5-1.8b_bm1688_int4_2core.bmodel --tokenizer_path ../support/token_config/
+python3 chat.py --model_path qwen1.5-1.8b_bm1688_int4_2core.bmodel -c token_config
 ```
