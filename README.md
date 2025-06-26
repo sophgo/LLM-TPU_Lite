@@ -1,5 +1,7 @@
 ![](./assets/sophgo_chip.png)
 
+**本项目会逐步废弃**，由[LLM-TPU](https://github.com/sophgo/LLM-TPU)代替。
+
 # 介绍
 
 本项目实现算能BM1688和CV168AH部署各类开源`生成式AI模型`，主要是70亿参数量以内的大语言模型。
